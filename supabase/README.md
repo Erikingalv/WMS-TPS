@@ -43,6 +43,21 @@ esta misma carpeta funciona con `supabase db push` sin cambios.
 13. `migrations/0012_funciones_auditoria.sql` — `iniciar_auditoria` (toma la
     fotografía del inventario) y `cerrar_auditoria`.
 
+## Aplicar Fase 4
+
+14. `migrations/0013_hardening_fase4.sql` — corrige `usuarios_select` (los
+    no-administradores no veían a nadie más, lo que rompía los selectores
+    de "Recibió"/"Autorizó"/filtro de usuario) y convierte
+    `registrar_entrada/salida/movimiento_interno/reserva` y
+    `liberar_reserva` a `security definer` con verificación de rol interna,
+    retirando el permiso de insert/update directo en `entradas`, `salidas`,
+    `movimientos_internos`, `reservas`, `lotes` e
+    `inventario_lote_ubicacion` — de ahí en adelante solo se escribe en
+    esas tablas a través de su función atómica correspondiente.
+15. `migrations/0014_indices_fase4.sql` — índices para las consultas reales
+    de la app (dashboard, filtros por estado/fecha/usuario) y limpia un
+    índice duplicado.
+
 ## Crear el primer administrador
 
 El trigger `on_auth_user_created` crea automáticamente una fila en
