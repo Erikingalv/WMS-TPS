@@ -53,6 +53,7 @@ export type Producto = {
   alto_cm: number | null;
   foto_url: string | null;
   codigo_barras: string | null;
+  stock_minimo_piezas: number | null;
   activo: boolean;
   created_at: string;
   updated_at: string;
@@ -160,6 +161,113 @@ export type ArchivoAdjunto = {
   created_at: string;
 };
 
+export type EstadoReserva = "activa" | "liberada" | "consumida";
+
+export type Reserva = {
+  id: string;
+  lote_id: string;
+  ubicacion_id: string;
+  cantidad_piezas: number;
+  cantidad_tarimas: number;
+  fecha_reserva: string;
+  fecha_liberacion: string | null;
+  estado: EstadoReserva;
+  usuario_id: string;
+  observaciones: string | null;
+};
+
+export type EstadoAuditoria = "en_proceso" | "cerrada";
+
+export type Auditoria = {
+  id: string;
+  fecha_inicio: string;
+  fecha_cierre: string | null;
+  responsable_id: string;
+  estado: EstadoAuditoria;
+  observaciones: string | null;
+};
+
+export type AuditoriaDetalle = {
+  id: string;
+  auditoria_id: string;
+  lote_id: string;
+  ubicacion_id: string;
+  cantidad_sistema_piezas: number;
+  cantidad_sistema_tarimas: number;
+  cantidad_fisica_piezas: number | null;
+  cantidad_fisica_tarimas: number | null;
+  diferencia_piezas: number | null;
+  diferencia_tarimas: number | null;
+  observaciones: string | null;
+  contado_por: string | null;
+  contado_at: string | null;
+};
+
+export type TipoAlerta = "dias_almacenados" | "ocupacion" | "inventario_bajo" | "caducidad";
+export type NivelAlerta = "info" | "warning" | "critico";
+
+export type Alerta = {
+  id: string;
+  tipo: TipoAlerta;
+  referencia_tabla: string;
+  referencia_id: string;
+  mensaje: string;
+  nivel: NivelAlerta;
+  atendida: boolean;
+  atendida_por: string | null;
+  atendida_at: string | null;
+  created_at: string;
+};
+
+export type ConfiguracionAlertas = {
+  id: string;
+  umbral_dias_amarillo: number;
+  umbral_dias_naranja: number;
+  umbral_dias_rojo: number;
+  umbral_ocupacion_pct: number;
+  umbral_caducidad_dias: number;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Periodicidad = "diario" | "semanal" | "mensual";
+
+export type TarifaAlmacenaje = {
+  id: string;
+  cliente_id: string;
+  nombre: string;
+  periodicidad: Periodicidad;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+};
+
+export type TarifaEscalon = {
+  id: string;
+  tarifa_id: string;
+  dia_inicio: number;
+  dia_fin: number | null;
+  costo_por_tarima: number;
+  es_gratis: boolean;
+};
+
+export type EstadoCargo = "pendiente" | "facturado";
+
+export type CargoAlmacenaje = {
+  id: string;
+  lote_id: string;
+  cliente_id: string;
+  tarifa_id: string | null;
+  periodo_desde: string;
+  periodo_hasta: string;
+  dias: number;
+  tarimas_promedio: number;
+  costo_calculado: number;
+  estado: EstadoCargo;
+  created_at: string;
+  updated_at: string;
+};
+
 export type HistorialMovimiento = {
   id: string;
   tabla_afectada: string;
@@ -249,6 +357,64 @@ export type Database = {
         Omit<HistorialMovimiento, "id">,
         Partial<Omit<HistorialMovimiento, "id">>
       >;
+      reservas: TableDef<
+        Reserva,
+        Omit<Reserva, "id" | "fecha_reserva" | "fecha_liberacion" | "estado"> & {
+          id?: string;
+          estado?: EstadoReserva;
+        },
+        Partial<Omit<Reserva, "id">>
+      >;
+      auditorias: TableDef<
+        Auditoria,
+        Omit<Auditoria, "id" | "fecha_inicio" | "fecha_cierre" | "estado"> & {
+          id?: string;
+          estado?: EstadoAuditoria;
+        },
+        Partial<Omit<Auditoria, "id">>
+      >;
+      auditoria_detalle: TableDef<
+        AuditoriaDetalle,
+        Omit<
+          AuditoriaDetalle,
+          "id" | "diferencia_piezas" | "diferencia_tarimas" | "contado_at" | "contado_por"
+        > & { id?: string; contado_por?: string | null; contado_at?: string | null },
+        Partial<Omit<AuditoriaDetalle, "id" | "diferencia_piezas" | "diferencia_tarimas">>
+      >;
+      alertas: TableDef<
+        Alerta,
+        Omit<Alerta, "id" | "created_at" | "atendida" | "atendida_por" | "atendida_at"> & {
+          id?: string;
+          atendida?: boolean;
+        },
+        Partial<Omit<Alerta, "id">>
+      >;
+      configuracion_alertas: TableDef<
+        ConfiguracionAlertas,
+        Omit<ConfiguracionAlertas, "id" | "created_at" | "updated_at"> & { id?: string },
+        Partial<Omit<ConfiguracionAlertas, "id">>
+      >;
+      tarifas_almacenaje: TableDef<
+        TarifaAlmacenaje,
+        Omit<TarifaAlmacenaje, "id" | "created_at" | "updated_at" | "activo"> & {
+          id?: string;
+          activo?: boolean;
+        },
+        Partial<Omit<TarifaAlmacenaje, "id">>
+      >;
+      tarifa_escalones: TableDef<
+        TarifaEscalon,
+        Omit<TarifaEscalon, "id"> & { id?: string },
+        Partial<Omit<TarifaEscalon, "id">>
+      >;
+      cargos_almacenaje: TableDef<
+        CargoAlmacenaje,
+        Omit<CargoAlmacenaje, "id" | "created_at" | "updated_at" | "estado"> & {
+          id?: string;
+          estado?: EstadoCargo;
+        },
+        Partial<Omit<CargoAlmacenaje, "id">>
+      >;
     };
     Views: Record<string, never>;
     Functions: {
@@ -292,6 +458,44 @@ export type Database = {
           p_motivo: string | null;
         };
         Returns: MovimientoInterno;
+      };
+      registrar_reserva: {
+        Args: {
+          p_lote_id: string;
+          p_ubicacion_id: string;
+          p_cantidad_piezas: number;
+          p_cantidad_tarimas: number;
+          p_observaciones: string | null;
+        };
+        Returns: Reserva;
+      };
+      liberar_reserva: {
+        Args: { p_reserva_id: string };
+        Returns: Reserva;
+      };
+      marcar_alerta_atendida: {
+        Args: { p_alerta_id: string };
+        Returns: Alerta;
+      };
+      generar_alertas: {
+        Args: Record<string, never>;
+        Returns: undefined;
+      };
+      calcular_cargo_lote: {
+        Args: { p_lote_id: string };
+        Returns: CargoAlmacenaje | null;
+      };
+      calcular_cargos_almacenaje: {
+        Args: Record<string, never>;
+        Returns: undefined;
+      };
+      iniciar_auditoria: {
+        Args: { p_observaciones?: string | null };
+        Returns: Auditoria;
+      };
+      cerrar_auditoria: {
+        Args: { p_auditoria_id: string };
+        Returns: Auditoria;
       };
     };
   };

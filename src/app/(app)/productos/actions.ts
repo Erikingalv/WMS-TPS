@@ -40,6 +40,7 @@ function leerFormulario(formData: FormData) {
     ancho_cm: numeroONulo(formData.get("ancho_cm")),
     alto_cm: numeroONulo(formData.get("alto_cm")),
     codigo_barras: textoONulo(formData.get("codigo_barras")),
+    stock_minimo_piezas: numeroONulo(formData.get("stock_minimo_piezas")),
   };
 }
 

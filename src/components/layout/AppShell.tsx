@@ -9,6 +9,7 @@ import { LogOut, Menu } from "lucide-react";
 import {
   NAV_ADMIN,
   NAV_CATALOGO,
+  NAV_CONTROL,
   NAV_OPERACION,
   NAV_PRINCIPAL,
   NAV_PROXIMAMENTE,
@@ -91,6 +92,15 @@ function SidebarContent({
           ))}
         </div>
 
+        <div className="flex flex-col gap-1">
+          <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+            Control
+          </p>
+          {NAV_CONTROL.filter((item) => puedeVer(item, usuario.rol)).map((item) => (
+            <NavLink key={item.href} item={item} onNavigate={onNavigate} />
+          ))}
+        </div>
+
         {NAV_ADMIN.some((item) => puedeVer(item, usuario.rol)) && (
           <div className="flex flex-col gap-1">
             <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
@@ -104,20 +114,22 @@ function SidebarContent({
           </div>
         )}
 
-        <div className="flex flex-col gap-1">
-          <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
-            Próximamente
-          </p>
-          {NAV_PROXIMAMENTE.map(({ label, icon: Icon }) => (
-            <div
-              key={label}
-              className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-ink-faint"
-            >
-              <Icon size={18} strokeWidth={2} />
-              {label}
-            </div>
-          ))}
-        </div>
+        {NAV_PROXIMAMENTE.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+              Próximamente
+            </p>
+            {NAV_PROXIMAMENTE.map(({ label, icon: Icon }) => (
+              <div
+                key={label}
+                className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-ink-faint"
+              >
+                <Icon size={18} strokeWidth={2} />
+                {label}
+              </div>
+            ))}
+          </div>
+        )}
       </nav>
 
       <div className="border-t border-line p-3">

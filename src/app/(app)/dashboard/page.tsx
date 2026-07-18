@@ -20,6 +20,7 @@ export default async function DashboardPage() {
     { count: entradasHoy },
     { count: salidasHoy },
     { data: lotesActivos },
+    { count: alertasAbiertas },
   ] = await Promise.all([
     supabase.from("clientes").select("*", { count: "exact", head: true }).eq("activo", true),
     supabase.from("ubicaciones").select("capacidad_max_tarimas").eq("activo", true),
@@ -27,6 +28,7 @@ export default async function DashboardPage() {
     supabase.from("entradas").select("*", { count: "exact", head: true }).gte("fecha", hoy),
     supabase.from("salidas").select("*", { count: "exact", head: true }).gte("fecha", hoy),
     supabase.from("lotes").select("fecha_ingreso").eq("estado", "activo"),
+    supabase.from("alertas").select("*", { count: "exact", head: true }).eq("atendida", false),
   ]);
 
   const capacidadTotal = (ubicaciones ?? []).reduce((s, u) => s + u.capacidad_max_tarimas, 0);
@@ -77,12 +79,13 @@ export default async function DashboardPage() {
 
       <section>
         <p className="mb-3 text-[13px] font-semibold uppercase tracking-wide text-ink-faint">
-          Antigüedad de mercancía
+          Antigüedad de mercancía y alertas
         </p>
-        <div className="grid grid-cols-3 gap-4">
-          <KpiCard label="Más de 30 días" value={mas30} sub="lotes" />
-          <KpiCard label="Más de 60 días" value={mas60} sub="lotes" />
-          <KpiCard label="Más de 90 días" value={mas90} sub="lotes" />
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <KpiCard label="Más de 30 días" value={mas30} sub="lotes" href="/alertas" />
+          <KpiCard label="Más de 60 días" value={mas60} sub="lotes" href="/alertas" />
+          <KpiCard label="Más de 90 días" value={mas90} sub="lotes" href="/alertas" />
+          <KpiCard label="Alertas abiertas" value={alertasAbiertas ?? 0} href="/alertas" />
         </div>
       </section>
     </div>

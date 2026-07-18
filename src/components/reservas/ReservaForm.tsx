@@ -3,26 +3,21 @@
 import { useMemo, useState } from "react";
 import { Input, Select, Textarea } from "@/components/ui/Field";
 import { SubmitButton, ButtonLink } from "@/components/ui/Button";
-import { SignaturePad } from "@/components/salidas/SignaturePad";
 import { diasDesde } from "@/lib/utils/dates";
-import type { ExistenciaDisponible } from "@/lib/inventario";
-import type { Cliente, Producto, Usuario } from "@/lib/types/database";
+import type { Cliente, Producto } from "@/lib/types/database";
+import type { ExistenciaDisponible } from "@/components/salidas/SalidaForm";
 
-export type { ExistenciaDisponible };
-
-export function SalidaForm({
+export function ReservaForm({
   action,
   clientes,
   productos,
-  existencias,
-  usuarios,
+  disponibles,
   error,
 }: {
   action: (formData: FormData) => Promise<void>;
   clientes: Cliente[];
   productos: Producto[];
-  existencias: ExistenciaDisponible[];
-  usuarios: Usuario[];
+  disponibles: ExistenciaDisponible[];
   error?: string;
 }) {
   const [clienteId, setClienteId] = useState("");
@@ -34,15 +29,12 @@ export function SalidaForm({
     [productos, clienteId]
   );
 
-  const existenciasDelProducto = useMemo(
-    () =>
-      existencias
-        .filter((e) => e.producto_id === productoId)
-        .sort((a, b) => new Date(a.fecha_ingreso).getTime() - new Date(b.fecha_ingreso).getTime()),
-    [existencias, productoId]
+  const disponiblesDelProducto = useMemo(
+    () => disponibles.filter((e) => e.producto_id === productoId),
+    [disponibles, productoId]
   );
 
-  const seleccionada = existenciasDelProducto.find(
+  const seleccionada = disponiblesDelProducto.find(
     (e) => `${e.lote_id}:${e.ubicacion_id}` === combo
   );
 
@@ -95,21 +87,19 @@ export function SalidaForm({
       </div>
 
       <Select
-        label="Lote a surtir"
-        name="combo"
+        label="Lote y ubicación a reservar"
         required
         disabled={!productoId}
         value={combo}
         onChange={(e) => setCombo(e.target.value)}
-        hint="Se sugiere el lote más antiguo primero (FIFO); puedes elegir otro si lo justificas en observaciones."
+        hint="Solo se muestra lo que aún no está reservado por alguien más."
       >
         <option value="" disabled>
           {productoId ? "Selecciona un lote" : "Primero elige un producto"}
         </option>
-        {existenciasDelProducto.map((e, i) => (
+        {disponiblesDelProducto.map((e) => (
           <option key={`${e.lote_id}:${e.ubicacion_id}`} value={`${e.lote_id}:${e.ubicacion_id}`}>
-            {i === 0 ? "★ " : ""}
-            {e.codigo_lote} · {e.ubicacion_codigo} · disp. {e.cantidad_piezas} pz / {e.cantidad_tarimas} tar ·{" "}
+            {e.codigo_lote} · {e.ubicacion_codigo} · disponible {e.cantidad_piezas} pz / {e.cantidad_tarimas} tar ·{" "}
             {diasDesde(e.fecha_ingreso)} días
           </option>
         ))}
@@ -120,7 +110,7 @@ export function SalidaForm({
 
       <div className="grid gap-5 sm:grid-cols-2">
         <Input
-          label="Piezas"
+          label="Piezas a reservar"
           name="cantidad_piezas"
           type="number"
           min="1"
@@ -129,7 +119,7 @@ export function SalidaForm({
           hint={seleccionada ? `Disponible: ${seleccionada.cantidad_piezas}` : undefined}
         />
         <Input
-          label="Tarimas"
+          label="Tarimas a reservar"
           name="cantidad_tarimas"
           type="number"
           min="1"
@@ -139,32 +129,11 @@ export function SalidaForm({
         />
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Input label="Destino" name="destino" />
-        <Input label="Transportista" name="transportista" />
-      </div>
-
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Input label="Placas" name="placas" />
-        <Input label="Operador" name="operador" />
-      </div>
-
-      <Select label="Autorizó" name="autorizo_usuario_id" defaultValue="">
-        <option value="">Sin especificar</option>
-        {usuarios.map((u) => (
-          <option key={u.id} value={u.id}>
-            {u.nombre}
-          </option>
-        ))}
-      </Select>
-
-      <Textarea label="Observaciones" name="observaciones" />
-
-      <SignaturePad name="firma_digital_dataurl" />
+      <Textarea label="Observaciones" name="observaciones" placeholder="Para qué cliente/pedido es la reserva…" />
 
       <div className="flex gap-3 pt-2">
-        <SubmitButton pendingLabel="Registrando…">Registrar salida</SubmitButton>
-        <ButtonLink href="/salidas" variant="secondary">
+        <SubmitButton pendingLabel="Reservando…">Registrar reserva</SubmitButton>
+        <ButtonLink href="/reservas" variant="secondary">
           Cancelar
         </ButtonLink>
       </div>

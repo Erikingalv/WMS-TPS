@@ -26,6 +26,23 @@ esta misma carpeta funciona con `supabase db push` sin cambios.
 9. `migrations/0008_realtime_fase2.sql` — habilita Realtime para que el
    dashboard se actualice en vivo entre usuarios.
 
+## Aplicar Fase 3
+
+10. `migrations/0009_schema_fase3.sql` — reservas, auditorías, alertas,
+    tarifas de almacenaje y cargos.
+11. `migrations/0010_funciones_fase3.sql` — `registrar_reserva`,
+    `liberar_reserva`, `generar_alertas`, `calcular_cargo_lote` /
+    `calcular_cargos_almacenaje`; también reemplaza `registrar_salida` y
+    `registrar_movimiento_interno` de Fase 2 para que descuenten lo
+    reservado del disponible. Al final intenta habilitar `pg_cron` y
+    programar las tareas diarias (alertas 7am, cargos 6am) — si tu proyecto
+    no tiene esa extensión disponible, actívala primero en
+    **Database → Extensions** y vuelve a correr solo las dos sentencias
+    `select cron.schedule(...)` del final del archivo.
+12. `migrations/0011_rls_fase3.sql`
+13. `migrations/0012_funciones_auditoria.sql` — `iniciar_auditoria` (toma la
+    fotografía del inventario) y `cerrar_auditoria`.
+
 ## Crear el primer administrador
 
 El trigger `on_auth_user_created` crea automáticamente una fila en

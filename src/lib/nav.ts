@@ -5,6 +5,7 @@ import {
   Bell,
   Boxes,
   ClipboardCheck,
+  DollarSign,
   FileBarChart,
   History,
   LayoutDashboard,
@@ -16,7 +17,7 @@ import {
   Users,
 } from "lucide-react";
 import type { RolUsuario } from "@/lib/types/database";
-import { PUEDE_GESTIONAR_USUARIOS } from "@/lib/auth/permisos";
+import { PUEDE_GESTIONAR_USUARIOS, PUEDE_VER_TARIFAS } from "@/lib/auth/permisos";
 
 export interface NavItem {
   href: string;
@@ -40,8 +41,16 @@ export const NAV_OPERACION: NavItem[] = [
   { href: "/salidas", label: "Salidas", icon: ArrowUpFromLine },
   { href: "/inventario", label: "Inventario", icon: Boxes },
   { href: "/movimientos", label: "Movimientos internos", icon: Shuffle },
+  { href: "/reservas", label: "Reservas", icon: ClipboardCheck },
   { href: "/escanear", label: "Escanear", icon: ScanLine },
   { href: "/historial", label: "Historial", icon: History },
+];
+
+export const NAV_CONTROL: NavItem[] = [
+  { href: "/auditorias", label: "Auditorías", icon: ClipboardCheck },
+  { href: "/alertas", label: "Alertas", icon: Bell },
+  { href: "/reportes", label: "Reportes", icon: FileBarChart },
+  { href: "/tarifas", label: "Tarifas y cobro", icon: DollarSign, roles: PUEDE_VER_TARIFAS },
 ];
 
 export const NAV_ADMIN: NavItem[] = [
@@ -53,14 +62,8 @@ export const NAV_ADMIN: NavItem[] = [
   },
 ];
 
-// Módulos de fases siguientes — se muestran atenuados para anticipar el
-// mapa completo del sistema (ver documento de diseño, sección Navegación).
-export const NAV_PROXIMAMENTE: { label: string; icon: LucideIcon }[] = [
-  { label: "Reservas", icon: ClipboardCheck },
-  { label: "Auditorías", icon: ClipboardCheck },
-  { label: "Alertas", icon: Bell },
-  { label: "Reportes", icon: FileBarChart },
-];
+// Módulos de fases siguientes.
+export const NAV_PROXIMAMENTE: { label: string; icon: LucideIcon }[] = [];
 
 export function puedeVer(item: NavItem, rol: RolUsuario) {
   return !item.roles || item.roles.includes(rol);

@@ -22,6 +22,14 @@ export const PUEDE_EDITAR_UBICACIONES: RolUsuario[] = [
 
 export const PUEDE_GESTIONAR_USUARIOS: RolUsuario[] = ["administrador"];
 
+export const PUEDE_GESTIONAR_AUDITORIAS: RolUsuario[] = ["administrador", "supervisor"];
+
+export const PUEDE_ATENDER_ALERTAS: RolUsuario[] = ["administrador", "supervisor"];
+
+export const PUEDE_VER_TARIFAS: RolUsuario[] = ["administrador", "supervisor"];
+
+export const PUEDE_EDITAR_TARIFAS: RolUsuario[] = ["administrador"];
+
 export function tienePermiso(rol: RolUsuario, permitidos: RolUsuario[]) {
   return permitidos.includes(rol);
 }

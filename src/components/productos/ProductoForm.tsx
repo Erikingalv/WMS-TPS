@@ -72,11 +72,20 @@ export function ProductoForm({
           placeholder="pieza, caja, kg…"
         />
         <Input
-          label="Código de barras"
-          name="codigo_barras"
-          defaultValue={producto?.codigo_barras ?? ""}
+          label="Stock mínimo (piezas)"
+          name="stock_minimo_piezas"
+          type="number"
+          min="0"
+          defaultValue={producto?.stock_minimo_piezas ?? ""}
+          hint="Opcional — genera una alerta de inventario bajo"
         />
       </div>
+
+      <Input
+        label="Código de barras"
+        name="codigo_barras"
+        defaultValue={producto?.codigo_barras ?? ""}
+      />
 
       <div className="grid gap-5 sm:grid-cols-4">
         <Input
