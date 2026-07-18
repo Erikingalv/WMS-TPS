@@ -15,8 +15,15 @@ export async function signIn(formData: FormData) {
   });
 
   if (error) {
+    // Log temporal de diagnóstico — quitar una vez resuelto el problema de
+    // login en producción.
+    console.error("[signIn] Supabase error:", {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+    });
     const params = new URLSearchParams({
-      error: "Correo o contraseña incorrectos.",
+      error: `Correo o contraseña incorrectos. [DEBUG: ${error.message}]`,
       redirect: redirectTo,
     });
     redirect(`/login?${params.toString()}`);
