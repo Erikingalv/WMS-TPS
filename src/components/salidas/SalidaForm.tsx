@@ -16,6 +16,7 @@ export function SalidaForm({
   productos,
   existencias,
   usuarios,
+  fechaHoy,
   error,
 }: {
   action: (formData: FormData) => Promise<void>;
@@ -23,6 +24,7 @@ export function SalidaForm({
   productos: Producto[];
   existencias: ExistenciaDisponible[];
   usuarios: Usuario[];
+  fechaHoy: string;
   error?: string;
 }) {
   const [clienteId, setClienteId] = useState("");
@@ -140,6 +142,11 @@ export function SalidaForm({
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
+        <Input label="Fecha de salida" name="fecha" type="date" required defaultValue={fechaHoy} />
+        <Input label="Hora de carga o descarga" name="hora_carga_descarga" type="time" required />
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
         <Input label="Destino" name="destino" />
         <Input label="Transportista" name="transportista" />
       </div>
@@ -157,6 +164,30 @@ export function SalidaForm({
           </option>
         ))}
       </Select>
+
+      <div className="flex flex-col gap-3 rounded-lg border border-line p-4">
+        <p className="text-sm font-semibold text-ink">Datos logísticos (opcional)</p>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Input label="Cajas por pallet" name="cajas_por_pallet" type="number" min="1" />
+          <Input label="Cantidad por caja" name="cantidad_por_caja" type="number" min="1" />
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Input label="Categoría de producto" name="categoria_producto" />
+          <Input
+            label="Presentación"
+            name="presentacion"
+            hint="Ej. cajas, atados, bultos…"
+          />
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Input label="Lote 1" name="lote_1" />
+          <Input label="Lote 2" name="lote_2" />
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Input label="Número de contenedor" name="numero_contenedor" />
+          <Input label="Número de BL" name="numero_bl" />
+        </div>
+      </div>
 
       <Textarea label="Observaciones" name="observaciones" />
 

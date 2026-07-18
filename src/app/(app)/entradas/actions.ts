@@ -16,10 +16,20 @@ export async function crearEntrada(formData: FormData) {
   const ubicacion_id = String(formData.get("ubicacion_id") ?? "");
   const cantidad_piezas = Number(formData.get("cantidad_piezas") ?? 0);
   const cantidad_tarimas = Number(formData.get("cantidad_tarimas") ?? 0);
+  const fecha_movimiento = String(formData.get("fecha") ?? "");
+  const hora_carga_descarga = String(formData.get("hora_carga_descarga") ?? "");
   const peso_kg = numeroONulo(formData.get("peso_kg"));
   const recibio_usuario_id = textoONulo(formData.get("recibio_usuario_id"));
   const observaciones = textoONulo(formData.get("observaciones"));
   const fecha_caducidad = textoONulo(formData.get("fecha_caducidad"));
+  const cajas_por_pallet = numeroONulo(formData.get("cajas_por_pallet"));
+  const cantidad_por_caja = numeroONulo(formData.get("cantidad_por_caja"));
+  const categoria_producto = textoONulo(formData.get("categoria_producto"));
+  const lote_1 = textoONulo(formData.get("lote_1"));
+  const lote_2 = textoONulo(formData.get("lote_2"));
+  const numero_contenedor = textoONulo(formData.get("numero_contenedor"));
+  const numero_bl = textoONulo(formData.get("numero_bl"));
+  const presentacion = textoONulo(formData.get("presentacion"));
 
   const { data: entrada, error } = await supabase.rpc("registrar_entrada", {
     p_cliente_id: cliente_id,
@@ -27,10 +37,20 @@ export async function crearEntrada(formData: FormData) {
     p_ubicacion_id: ubicacion_id,
     p_cantidad_piezas: cantidad_piezas,
     p_cantidad_tarimas: cantidad_tarimas,
+    p_fecha_movimiento: fecha_movimiento,
+    p_hora_carga_descarga: hora_carga_descarga,
     p_peso_kg: peso_kg,
     p_recibio_usuario_id: recibio_usuario_id,
     p_observaciones: observaciones,
     p_fecha_caducidad: fecha_caducidad,
+    p_cajas_por_pallet: cajas_por_pallet,
+    p_cantidad_por_caja: cantidad_por_caja,
+    p_categoria_producto: categoria_producto,
+    p_lote_1: lote_1,
+    p_lote_2: lote_2,
+    p_numero_contenedor: numero_contenedor,
+    p_numero_bl: numero_bl,
+    p_presentacion: presentacion,
   });
 
   if (error || !entrada) {

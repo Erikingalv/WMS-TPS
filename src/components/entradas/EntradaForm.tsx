@@ -12,6 +12,7 @@ export function EntradaForm({
   ubicaciones,
   usuarios,
   usuarioActualId,
+  fechaHoy,
   error,
 }: {
   action: (formData: FormData) => Promise<void>;
@@ -20,6 +21,7 @@ export function EntradaForm({
   ubicaciones: Ubicacion[];
   usuarios: Usuario[];
   usuarioActualId?: string;
+  fechaHoy: string;
   error?: string;
 }) {
   const [clienteId, setClienteId] = useState("");
@@ -79,6 +81,11 @@ export function EntradaForm({
       </div>
 
       <div className="grid gap-5 sm:grid-cols-2">
+        <Input label="Fecha de ingreso" name="fecha" type="date" required defaultValue={fechaHoy} />
+        <Input label="Hora de carga o descarga" name="hora_carga_descarga" type="time" required />
+      </div>
+
+      <div className="grid gap-5 sm:grid-cols-2">
         <Select label="Ubicación" name="ubicacion_id" required defaultValue="">
           <option value="" disabled>
             Selecciona una ubicación
@@ -106,6 +113,30 @@ export function EntradaForm({
         type="date"
         hint="Opcional — solo para productos perecederos (FEFO)"
       />
+
+      <div className="flex flex-col gap-3 rounded-lg border border-line p-4">
+        <p className="text-sm font-semibold text-ink">Datos logísticos (opcional)</p>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Input label="Cajas por pallet" name="cajas_por_pallet" type="number" min="1" />
+          <Input label="Cantidad por caja" name="cantidad_por_caja" type="number" min="1" />
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Input label="Categoría de producto" name="categoria_producto" />
+          <Input
+            label="Presentación"
+            name="presentacion"
+            hint="Ej. cajas, atados, bultos…"
+          />
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Input label="Lote 1" name="lote_1" />
+          <Input label="Lote 2" name="lote_2" />
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Input label="Número de contenedor" name="numero_contenedor" />
+          <Input label="Número de BL" name="numero_bl" />
+        </div>
+      </div>
 
       <Textarea label="Observaciones" name="observaciones" />
 

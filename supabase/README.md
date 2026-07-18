@@ -58,6 +58,15 @@ esta misma carpeta funciona con `supabase db push` sin cambios.
     de la app (dashboard, filtros por estado/fecha/usuario) y limpia un
     índice duplicado.
 
+## Campos extra de Entradas/Salidas
+
+16. `migrations/0015_campos_extra_entradas_salidas.sql` — agrega a
+    `entradas`/`salidas` los campos opcionales de logística (cajas por
+    pallet, cantidad por caja, categoría, lote 1/2, número de contenedor,
+    número de BL, presentación) y los obligatorios fecha del movimiento y
+    hora de carga/descarga. Reemplaza `registrar_entrada`/`registrar_salida`
+    para que usen la fecha/hora capturada en vez de `now()`.
+
 ## Crear el primer administrador
 
 El trigger `on_auth_user_created` crea automáticamente una fila en

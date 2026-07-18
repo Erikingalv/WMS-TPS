@@ -20,6 +20,31 @@ function tonoPorDias(dias: number) {
   return "ok" as const;
 }
 
+function detalleLogistico(mov: {
+  hora_carga_descarga: string;
+  numero_contenedor: string | null;
+  numero_bl: string | null;
+  presentacion: string | null;
+  categoria_producto: string | null;
+  lote_1: string | null;
+  lote_2: string | null;
+  cajas_por_pallet: number | null;
+  cantidad_por_caja: number | null;
+}) {
+  const partes = [
+    `carga/descarga ${mov.hora_carga_descarga.slice(0, 5)}`,
+    mov.numero_contenedor ? `contenedor ${mov.numero_contenedor}` : null,
+    mov.numero_bl ? `BL ${mov.numero_bl}` : null,
+    mov.presentacion,
+    mov.categoria_producto,
+    mov.lote_1 ? `lote 1: ${mov.lote_1}` : null,
+    mov.lote_2 ? `lote 2: ${mov.lote_2}` : null,
+    mov.cajas_por_pallet ? `${mov.cajas_por_pallet} cajas/pallet` : null,
+    mov.cantidad_por_caja ? `${mov.cantidad_por_caja} pz/caja` : null,
+  ].filter(Boolean);
+  return partes.length > 0 ? ` (${partes.join(" · ")})` : "";
+}
+
 type Movimiento =
   | { tipo: "entrada"; fecha: string; detalle: string }
   | { tipo: "salida"; fecha: string; detalle: string }
@@ -90,12 +115,12 @@ export default async function LoteDetallePage({
     ...(entradas ?? []).map((e) => ({
       tipo: "entrada" as const,
       fecha: e.fecha,
-      detalle: `Entrada de ${e.cantidad_piezas} pz / ${e.cantidad_tarimas} tar a ${mapaUbicaciones.get(e.ubicacion_id) ?? "?"}`,
+      detalle: `Entrada de ${e.cantidad_piezas} pz / ${e.cantidad_tarimas} tar a ${mapaUbicaciones.get(e.ubicacion_id) ?? "?"}${detalleLogistico(e)}`,
     })),
     ...(salidas ?? []).map((s) => ({
       tipo: "salida" as const,
       fecha: s.fecha,
-      detalle: `Salida de ${s.cantidad_piezas} pz / ${s.cantidad_tarimas} tar desde ${mapaUbicaciones.get(s.ubicacion_id) ?? "?"}${s.destino ? ` hacia ${s.destino}` : ""}`,
+      detalle: `Salida de ${s.cantidad_piezas} pz / ${s.cantidad_tarimas} tar desde ${mapaUbicaciones.get(s.ubicacion_id) ?? "?"}${s.destino ? ` hacia ${s.destino}` : ""}${detalleLogistico(s)}`,
     })),
     ...(movimientosInternos ?? []).map((m) => ({
       tipo: "movimiento" as const,

@@ -108,6 +108,15 @@ export type Entrada = {
   observaciones: string | null;
   created_by: string;
   created_at: string;
+  hora_carga_descarga: string;
+  cajas_por_pallet: number | null;
+  cantidad_por_caja: number | null;
+  categoria_producto: string | null;
+  lote_1: string | null;
+  lote_2: string | null;
+  numero_contenedor: string | null;
+  numero_bl: string | null;
+  presentacion: string | null;
 };
 
 export type Salida = {
@@ -128,6 +137,15 @@ export type Salida = {
   firma_digital_url: string | null;
   created_by: string;
   created_at: string;
+  hora_carga_descarga: string;
+  cajas_por_pallet: number | null;
+  cantidad_por_caja: number | null;
+  categoria_producto: string | null;
+  lote_1: string | null;
+  lote_2: string | null;
+  numero_contenedor: string | null;
+  numero_bl: string | null;
+  presentacion: string | null;
 };
 
 export type MovimientoInterno = {
@@ -425,10 +443,20 @@ export type Database = {
           p_ubicacion_id: string;
           p_cantidad_piezas: number;
           p_cantidad_tarimas: number;
+          p_fecha_movimiento: string;
+          p_hora_carga_descarga: string;
           p_peso_kg: number | null;
           p_recibio_usuario_id: string | null;
           p_observaciones: string | null;
           p_fecha_caducidad?: string | null;
+          p_cajas_por_pallet?: number | null;
+          p_cantidad_por_caja?: number | null;
+          p_categoria_producto?: string | null;
+          p_lote_1?: string | null;
+          p_lote_2?: string | null;
+          p_numero_contenedor?: string | null;
+          p_numero_bl?: string | null;
+          p_presentacion?: string | null;
         };
         Returns: Entrada;
       };
@@ -438,6 +466,8 @@ export type Database = {
           p_ubicacion_id: string;
           p_cantidad_piezas: number;
           p_cantidad_tarimas: number;
+          p_fecha_movimiento: string;
+          p_hora_carga_descarga: string;
           p_destino: string | null;
           p_transportista: string | null;
           p_placas: string | null;
@@ -445,6 +475,14 @@ export type Database = {
           p_autorizo_usuario_id: string | null;
           p_observaciones: string | null;
           p_firma_digital_url?: string | null;
+          p_cajas_por_pallet?: number | null;
+          p_cantidad_por_caja?: number | null;
+          p_categoria_producto?: string | null;
+          p_lote_1?: string | null;
+          p_lote_2?: string | null;
+          p_numero_contenedor?: string | null;
+          p_numero_bl?: string | null;
+          p_presentacion?: string | null;
         };
         Returns: Salida;
       };

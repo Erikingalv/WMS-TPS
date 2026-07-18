@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { subirDataUrl } from "@/lib/supabase/storage";
-import { textoONulo } from "@/lib/utils/forms";
+import { numeroONulo, textoONulo } from "@/lib/utils/forms";
 
 export async function crearSalida(formData: FormData) {
   const supabase = await createClient();
@@ -14,6 +14,8 @@ export async function crearSalida(formData: FormData) {
   const ubicacion_id = String(formData.get("ubicacion_id") ?? "");
   const cantidad_piezas = Number(formData.get("cantidad_piezas") ?? 0);
   const cantidad_tarimas = Number(formData.get("cantidad_tarimas") ?? 0);
+  const fecha_movimiento = String(formData.get("fecha") ?? "");
+  const hora_carga_descarga = String(formData.get("hora_carga_descarga") ?? "");
   const destino = textoONulo(formData.get("destino"));
   const transportista = textoONulo(formData.get("transportista"));
   const placas = textoONulo(formData.get("placas"));
@@ -21,6 +23,14 @@ export async function crearSalida(formData: FormData) {
   const autorizo_usuario_id = textoONulo(formData.get("autorizo_usuario_id"));
   const observaciones = textoONulo(formData.get("observaciones"));
   const firmaDataUrl = textoONulo(formData.get("firma_digital_dataurl"));
+  const cajas_por_pallet = numeroONulo(formData.get("cajas_por_pallet"));
+  const cantidad_por_caja = numeroONulo(formData.get("cantidad_por_caja"));
+  const categoria_producto = textoONulo(formData.get("categoria_producto"));
+  const lote_1 = textoONulo(formData.get("lote_1"));
+  const lote_2 = textoONulo(formData.get("lote_2"));
+  const numero_contenedor = textoONulo(formData.get("numero_contenedor"));
+  const numero_bl = textoONulo(formData.get("numero_bl"));
+  const presentacion = textoONulo(formData.get("presentacion"));
 
   if (!lote_id || !ubicacion_id) {
     redirect(
@@ -47,6 +57,8 @@ export async function crearSalida(formData: FormData) {
     p_ubicacion_id: ubicacion_id,
     p_cantidad_piezas: cantidad_piezas,
     p_cantidad_tarimas: cantidad_tarimas,
+    p_fecha_movimiento: fecha_movimiento,
+    p_hora_carga_descarga: hora_carga_descarga,
     p_destino: destino,
     p_transportista: transportista,
     p_placas: placas,
@@ -54,6 +66,14 @@ export async function crearSalida(formData: FormData) {
     p_autorizo_usuario_id: autorizo_usuario_id,
     p_observaciones: observaciones,
     p_firma_digital_url: firma_digital_url,
+    p_cajas_por_pallet: cajas_por_pallet,
+    p_cantidad_por_caja: cantidad_por_caja,
+    p_categoria_producto: categoria_producto,
+    p_lote_1: lote_1,
+    p_lote_2: lote_2,
+    p_numero_contenedor: numero_contenedor,
+    p_numero_bl: numero_bl,
+    p_presentacion: presentacion,
   });
 
   if (error || !salida) {

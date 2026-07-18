@@ -32,6 +32,7 @@ export default async function NuevaSalidaPage({
         productos={productos ?? []}
         existencias={existencias}
         usuarios={usuarios ?? []}
+        fechaHoy={new Date().toISOString().slice(0, 10)}
         error={params.error}
       />
     </div>
