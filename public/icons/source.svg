@@ -1,0 +1,12 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <rect width="512" height="512" rx="112" fill="#2F5D62"/>
+  <g stroke="#F2F1EC" stroke-width="22" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <!-- caja isométrica: tarima con paquete -->
+    <path d="M256 118 L372 178 L372 334 L256 394 L140 334 L140 178 Z"/>
+    <path d="M140 178 L256 238 L372 178"/>
+    <path d="M256 238 L256 394"/>
+  </g>
+  <g stroke="#F2F1EC" stroke-width="16" stroke-linecap="round">
+    <path d="M172 148 L256 192 L340 148" fill="none"/>
+  </g>
+</svg>

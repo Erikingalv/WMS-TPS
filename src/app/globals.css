@@ -1,26 +1,121 @@
 @import "tailwindcss";
 
+/* ---------------------------------------------------------------
+   Design tokens — paleta compartida con el documento de diseño
+   (teal industrial + neutros cálidos). Definidos como variables
+   CSS planas y expuestos a Tailwind vía @theme inline para que
+   cualquier utilidad (bg-paper, text-ink, border-line, etc.)
+   reaccione automáticamente al cambio de tema.
+------------------------------------------------------------------ */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --paper: #f2f1ec;
+  --paper-raised: #ffffff;
+  --ink: #201f1c;
+  --ink-soft: #5b564c;
+  --ink-faint: #8c8577;
+  --accent: #2f5d62;
+  --accent-hover: #24494d;
+  --accent-soft: #e1ebea;
+  --line: #d9d5c8;
+  --ok: #4b7a51;
+  --ok-soft: #e7f0e6;
+  --warn: #c97a2b;
+  --warn-soft: #f6e8d6;
+  --crit: #b3402e;
+  --crit-soft: #f5e1dc;
+  --radius-card: 0.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #17181a;
+    --paper-raised: #202220;
+    --ink: #ede9e0;
+    --ink-soft: #b4ae9f;
+    --ink-faint: #726c5e;
+    --accent: #7cc0c4;
+    --accent-hover: #97cfd2;
+    --accent-soft: #24393b;
+    --line: #383630;
+    --ok: #86c890;
+    --ok-soft: #223027;
+    --warn: #e3a75e;
+    --warn-soft: #332a1c;
+    --crit: #e3826c;
+    --crit-soft: #332420;
+  }
+}
+
+:root[data-theme="dark"] {
+  --paper: #17181a;
+  --paper-raised: #202220;
+  --ink: #ede9e0;
+  --ink-soft: #b4ae9f;
+  --ink-faint: #726c5e;
+  --accent: #7cc0c4;
+  --accent-hover: #97cfd2;
+  --accent-soft: #24393b;
+  --line: #383630;
+  --ok: #86c890;
+  --ok-soft: #223027;
+  --warn: #e3a75e;
+  --warn-soft: #332a1c;
+  --crit: #e3826c;
+  --crit-soft: #332420;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  --color-paper: var(--paper);
+  --color-paper-raised: var(--paper-raised);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-faint: var(--ink-faint);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-line: var(--line);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-crit: var(--crit);
+  --color-crit-soft: var(--crit-soft);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  border-color: var(--line);
+}
+
+html {
+  color-scheme: light dark;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
