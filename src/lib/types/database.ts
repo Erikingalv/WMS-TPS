@@ -68,6 +68,111 @@ export type Ubicacion = {
   updated_at: string;
 };
 
+export type EstadoLote = "activo" | "agotado";
+
+export type Lote = {
+  id: string;
+  producto_id: string;
+  codigo_lote: string;
+  fecha_ingreso: string;
+  fecha_caducidad: string | null;
+  piezas_inicial: number;
+  tarimas_inicial: number;
+  estado: EstadoLote;
+  qr_payload: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type InventarioLoteUbicacion = {
+  id: string;
+  lote_id: string;
+  ubicacion_id: string;
+  cantidad_piezas: number;
+  cantidad_tarimas: number;
+  updated_at: string;
+};
+
+export type Entrada = {
+  id: string;
+  fecha: string;
+  cliente_id: string;
+  producto_id: string;
+  lote_id: string;
+  cantidad_piezas: number;
+  cantidad_tarimas: number;
+  peso_kg: number | null;
+  ubicacion_id: string;
+  recibio_usuario_id: string | null;
+  observaciones: string | null;
+  created_by: string;
+  created_at: string;
+};
+
+export type Salida = {
+  id: string;
+  fecha: string;
+  cliente_id: string;
+  producto_id: string;
+  lote_id: string;
+  ubicacion_id: string;
+  cantidad_piezas: number;
+  cantidad_tarimas: number;
+  destino: string | null;
+  transportista: string | null;
+  placas: string | null;
+  operador: string | null;
+  autorizo_usuario_id: string | null;
+  observaciones: string | null;
+  firma_digital_url: string | null;
+  created_by: string;
+  created_at: string;
+};
+
+export type MovimientoInterno = {
+  id: string;
+  lote_id: string;
+  ubicacion_origen_id: string;
+  ubicacion_destino_id: string;
+  cantidad_piezas: number;
+  cantidad_tarimas: number;
+  motivo: string | null;
+  usuario_id: string;
+  created_at: string;
+};
+
+export type TipoDocumento =
+  | "factura"
+  | "carta_porte"
+  | "packing_list"
+  | "orden_compra"
+  | "foto"
+  | "otro";
+
+export type ArchivoAdjunto = {
+  id: string;
+  entidad_tipo: "entrada" | "salida";
+  entidad_id: string;
+  tipo_documento: TipoDocumento;
+  storage_path: string;
+  nombre_archivo: string | null;
+  subido_por: string | null;
+  created_at: string;
+};
+
+export type HistorialMovimiento = {
+  id: string;
+  tabla_afectada: string;
+  registro_id: string | null;
+  tipo_movimiento: string;
+  usuario_id: string | null;
+  fecha_hora: string;
+  ip: string | null;
+  dispositivo: string | null;
+  datos_antes: Record<string, unknown> | null;
+  datos_despues: Record<string, unknown> | null;
+};
+
 // Debe calzar con `GenericTable` de @supabase/postgrest-js (Row/Insert/Update
 // /Relationships) o el cliente tipado cae en `never` para todas las tablas.
 type TableDef<Row, Insert, Update> = {
@@ -109,8 +214,85 @@ export type Database = {
         },
         Partial<Omit<Ubicacion, "id">>
       >;
+      lotes: TableDef<
+        Lote,
+        Omit<Lote, "id" | "created_at" | "updated_at">,
+        Partial<Omit<Lote, "id">>
+      >;
+      inventario_lote_ubicacion: TableDef<
+        InventarioLoteUbicacion,
+        Omit<InventarioLoteUbicacion, "id" | "updated_at"> & { id?: string },
+        Partial<Omit<InventarioLoteUbicacion, "id">>
+      >;
+      entradas: TableDef<
+        Entrada,
+        Omit<Entrada, "id" | "created_at">,
+        Partial<Omit<Entrada, "id">>
+      >;
+      salidas: TableDef<
+        Salida,
+        Omit<Salida, "id" | "created_at">,
+        Partial<Omit<Salida, "id">>
+      >;
+      movimientos_internos: TableDef<
+        MovimientoInterno,
+        Omit<MovimientoInterno, "id" | "created_at">,
+        Partial<Omit<MovimientoInterno, "id">>
+      >;
+      archivos_adjuntos: TableDef<
+        ArchivoAdjunto,
+        Omit<ArchivoAdjunto, "id" | "created_at">,
+        Partial<Omit<ArchivoAdjunto, "id">>
+      >;
+      historial_movimientos: TableDef<
+        HistorialMovimiento,
+        Omit<HistorialMovimiento, "id">,
+        Partial<Omit<HistorialMovimiento, "id">>
+      >;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      registrar_entrada: {
+        Args: {
+          p_cliente_id: string;
+          p_producto_id: string;
+          p_ubicacion_id: string;
+          p_cantidad_piezas: number;
+          p_cantidad_tarimas: number;
+          p_peso_kg: number | null;
+          p_recibio_usuario_id: string | null;
+          p_observaciones: string | null;
+          p_fecha_caducidad?: string | null;
+        };
+        Returns: Entrada;
+      };
+      registrar_salida: {
+        Args: {
+          p_lote_id: string;
+          p_ubicacion_id: string;
+          p_cantidad_piezas: number;
+          p_cantidad_tarimas: number;
+          p_destino: string | null;
+          p_transportista: string | null;
+          p_placas: string | null;
+          p_operador: string | null;
+          p_autorizo_usuario_id: string | null;
+          p_observaciones: string | null;
+          p_firma_digital_url?: string | null;
+        };
+        Returns: Salida;
+      };
+      registrar_movimiento_interno: {
+        Args: {
+          p_lote_id: string;
+          p_ubicacion_origen_id: string;
+          p_ubicacion_destino_id: string;
+          p_cantidad_piezas: number;
+          p_cantidad_tarimas: number;
+          p_motivo: string | null;
+        };
+        Returns: MovimientoInterno;
+      };
+    };
   };
 };

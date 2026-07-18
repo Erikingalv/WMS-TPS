@@ -1,80 +1,88 @@
 import { createClient } from "@/lib/supabase/server";
 import { KpiCard } from "@/components/ui/Card";
+import { RealtimeRefresher } from "@/components/RealtimeRefresher";
+import { diasDesde } from "@/lib/utils/dates";
+
+function inicioDeHoyIso() {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d.toISOString();
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+  const hoy = inicioDeHoyIso();
 
-  const [{ count: clientesActivos }, { count: productosActivos }, { data: ubicaciones }] =
-    await Promise.all([
-      supabase
-        .from("clientes")
-        .select("*", { count: "exact", head: true })
-        .eq("activo", true),
-      supabase
-        .from("productos")
-        .select("*", { count: "exact", head: true })
-        .eq("activo", true),
-      supabase
-        .from("ubicaciones")
-        .select("capacidad_max_tarimas")
-        .eq("activo", true),
-    ]);
+  const [
+    { count: clientesActivos },
+    { data: ubicaciones },
+    { data: existencias },
+    { count: entradasHoy },
+    { count: salidasHoy },
+    { data: lotesActivos },
+  ] = await Promise.all([
+    supabase.from("clientes").select("*", { count: "exact", head: true }).eq("activo", true),
+    supabase.from("ubicaciones").select("capacidad_max_tarimas").eq("activo", true),
+    supabase.from("inventario_lote_ubicacion").select("cantidad_piezas, cantidad_tarimas"),
+    supabase.from("entradas").select("*", { count: "exact", head: true }).gte("fecha", hoy),
+    supabase.from("salidas").select("*", { count: "exact", head: true }).gte("fecha", hoy),
+    supabase.from("lotes").select("fecha_ingreso").eq("estado", "activo"),
+  ]);
 
-  const capacidadTotal = (ubicaciones ?? []).reduce(
-    (sum, u) => sum + u.capacidad_max_tarimas,
-    0
-  );
+  const capacidadTotal = (ubicaciones ?? []).reduce((s, u) => s + u.capacidad_max_tarimas, 0);
+  const tarimasOcupadas = (existencias ?? []).reduce((s, e) => s + e.cantidad_tarimas, 0);
+  const piezasTotales = (existencias ?? []).reduce((s, e) => s + e.cantidad_piezas, 0);
+  const ocupacionPct = capacidadTotal > 0 ? Math.round((tarimasOcupadas / capacidadTotal) * 100) : 0;
+  const espaciosDisponibles = Math.max(0, capacidadTotal - tarimasOcupadas);
+
+  const diasPorLote = (lotesActivos ?? []).map((l) => diasDesde(l.fecha_ingreso));
+  const mas30 = diasPorLote.filter((d) => d >= 30).length;
+  const mas60 = diasPorLote.filter((d) => d >= 60).length;
+  const mas90 = diasPorLote.filter((d) => d >= 90).length;
 
   return (
     <div className="flex flex-col gap-8">
+      <RealtimeRefresher tables={["entradas", "salidas", "movimientos_internos", "inventario_lote_ubicacion"]} />
+
       <div>
         <h1 className="text-2xl font-semibold text-ink">Dashboard</h1>
         <p className="mt-1 text-sm text-ink-soft">
-          Vista general de la operación.
+          Vista general de la operación · se actualiza en vivo
         </p>
       </div>
 
       <section>
         <p className="mb-3 text-[13px] font-semibold uppercase tracking-wide text-ink-faint">
-          Ahora mismo
+          Inventario
         </p>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <KpiCard label="Clientes activos" value={clientesActivos ?? 0} />
-          <KpiCard label="Productos activos" value={productosActivos ?? 0} />
-          <KpiCard label="Ubicaciones" value={ubicaciones?.length ?? 0} />
-          <KpiCard
-            label="Capacidad total"
-            value={capacidadTotal}
-            sub="tarimas"
-          />
+          <KpiCard label="Tarimas almacenadas" value={tarimasOcupadas} />
+          <KpiCard label="Piezas totales" value={piezasTotales} />
+          <KpiCard label="Espacios disponibles" value={espaciosDisponibles} sub="tarimas" />
+          <KpiCard label="Ocupación de la bodega" value={`${ocupacionPct}%`} />
         </div>
       </section>
 
       <section>
         <p className="mb-3 text-[13px] font-semibold uppercase tracking-wide text-ink-faint">
-          Disponible en Fase 2 — al conectar entradas y salidas
+          Movimientos de hoy
         </p>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {[
-            "Tarimas almacenadas",
-            "Piezas totales",
-            "Entradas del día",
-            "Salidas del día",
-            "% de ocupación",
-            "Mercancía > 30 días",
-            "Mercancía > 60 días",
-            "Mercancía > 90 días",
-          ].map((label) => (
-            <div
-              key={label}
-              className="rounded-xl border border-dashed border-line p-5"
-            >
-              <p className="text-[13px] font-medium text-ink-faint">{label}</p>
-              <p className="mt-2 text-[28px] font-semibold leading-none text-ink-faint">
-                —
-              </p>
-            </div>
-          ))}
+          <KpiCard label="Entradas del día" value={entradasHoy ?? 0} />
+          <KpiCard label="Salidas del día" value={salidasHoy ?? 0} />
+          <KpiCard label="Clientes activos" value={clientesActivos ?? 0} />
+          <KpiCard label="Capacidad total" value={capacidadTotal} sub="tarimas" />
+        </div>
+      </section>
+
+      <section>
+        <p className="mb-3 text-[13px] font-semibold uppercase tracking-wide text-ink-faint">
+          Antigüedad de mercancía
+        </p>
+        <div className="grid grid-cols-3 gap-4">
+          <KpiCard label="Más de 30 días" value={mas30} sub="lotes" />
+          <KpiCard label="Más de 60 días" value={mas60} sub="lotes" />
+          <KpiCard label="Más de 90 días" value={mas90} sub="lotes" />
         </div>
       </section>
     </div>

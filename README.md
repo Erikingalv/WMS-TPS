@@ -6,13 +6,28 @@ Next.js (App Router) + TypeScript + TailwindCSS + Supabase. PWA instalable.
 Ver el documento de diseño completo (arquitectura, ERD, casos de uso, reglas
 de negocio, roadmap) para el contexto general del producto.
 
-## Fase actual: Fase 1 — Fundación
+## Fase actual: Fase 2 — Operación diaria
 
+**Fase 1 — Fundación**
 - Autenticación con 4 roles (administrador, supervisor, capturista, consulta)
-- Dashboard con KPIs reales de catálogo
 - CRUD de Clientes, Productos (con foto) y Ubicaciones
 - Alta de usuarios y asignación de rol (solo administrador)
 - PWA instalable con app-shell offline
+
+**Fase 2 — Operación diaria**
+- Entradas (crea lote + QR automáticamente, fotos y documentos)
+- Salidas (sugerencia FIFO, firma digital, nunca deja inventario negativo)
+- Movimientos internos entre ubicaciones (valida capacidad destino)
+- Inventario con filtros y antigüedad por lote
+- Escaneo con cámara (QR) con respaldo de captura manual
+- Historial: bitácora de auditoría inmutable en todas las tablas operativas
+- Dashboard con KPIs reales y actualización en vivo (Realtime)
+
+Las operaciones que mueven inventario (`registrar_entrada`, `registrar_salida`,
+`registrar_movimiento_interno`) corren como funciones RPC atómicas en
+PostgreSQL — no como inserts sueltos desde el cliente — para que dos personas
+capturando al mismo tiempo nunca dejen el inventario en un estado
+inconsistente.
 
 ## Poner en marcha
 
@@ -49,22 +64,26 @@ src/
     login/              — página de acceso
     (app)/              — área autenticada (sidebar + topbar)
       dashboard/
-      clientes/
-      productos/
-      ubicaciones/
+      clientes/ | productos/ | ubicaciones/
+      entradas/ | salidas/ | movimientos/
+      inventario/ | lotes/[codigo]/ | escanear/ | historial/
       usuarios/         — solo administrador
   components/
     ui/                 — primitivos (Button, Field, Card, Badge)
     layout/             — AppShell (sidebar, topbar, tema)
-    clientes|productos|ubicaciones|usuarios/ — formularios y widgets propios
+    clientes|productos|ubicaciones|usuarios|entradas|salidas|movimientos|escanear/
+                        — formularios y widgets propios de cada módulo
   lib/
-    supabase/           — clientes browser/server/admin + proxy de sesión
+    supabase/           — clientes browser/server/admin + proxy de sesión +
+                           storage (subida de archivos)
     auth/                — sesión, permisos por rol
     types/database.ts   — tipos de la base de datos (a mano; reemplazar por
                            `supabase gen types` cuando haya CLI disponible)
+    qr.ts                — generación de QR (server-side, `qrcode`)
   proxy.ts               — protección de rutas (convención de Next.js 16)
 supabase/
-  migrations/            — esquema, RLS y storage, en SQL puro
+  migrations/            — esquema, RLS, funciones RPC, storage y Realtime,
+                           en SQL puro
 ```
 
 ## Comandos
@@ -77,6 +96,5 @@ npm run lint    # ESLint
 
 ## Próximas fases
 
-Ver el documento de diseño: Fase 2 (entradas, salidas, inventario, QR),
-Fase 3 (reservas, auditorías, reportes, cobro de almacenaje) y Fase 4
-(endurecimiento y despliegue).
+Ver el documento de diseño: Fase 3 (reservas, auditorías, reportes, cobro de
+almacenaje) y Fase 4 (endurecimiento y despliegue).

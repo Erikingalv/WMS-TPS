@@ -9,6 +9,7 @@ import { LogOut, Menu } from "lucide-react";
 import {
   NAV_ADMIN,
   NAV_CATALOGO,
+  NAV_OPERACION,
   NAV_PRINCIPAL,
   NAV_PROXIMAMENTE,
   puedeVer,
@@ -77,6 +78,15 @@ function SidebarContent({
             Catálogo
           </p>
           {NAV_CATALOGO.map((item) => (
+            <NavLink key={item.href} item={item} onNavigate={onNavigate} />
+          ))}
+        </div>
+
+        <div className="flex flex-col gap-1">
+          <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
+            Operación
+          </p>
+          {NAV_OPERACION.map((item) => (
             <NavLink key={item.href} item={item} onNavigate={onNavigate} />
           ))}
         </div>

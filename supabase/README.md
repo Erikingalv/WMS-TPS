@@ -1,4 +1,4 @@
-# Migraciones — Fase 1
+# Migraciones
 
 No hay Supabase CLI ni Docker instalados en esta máquina, así que las
 migraciones se aplican a mano desde el **SQL Editor** del panel de Supabase
@@ -12,6 +12,19 @@ esta misma carpeta funciona con `supabase db push` sin cambios.
 3. Pega y ejecuta `migrations/0002_rls_fase1.sql`.
 4. Pega y ejecuta `migrations/0003_storage_fase1.sql` (crea el bucket
    público `productos` para las fotografías).
+
+## Aplicar Fase 2
+
+5. `migrations/0004_schema_fase2.sql` — lotes, inventario en vivo, entradas,
+   salidas, movimientos internos, adjuntos y bitácora.
+6. `migrations/0005_funciones_fase2.sql` — funciones RPC atómicas
+   (`registrar_entrada`, `registrar_salida`, `registrar_movimiento_interno`)
+   y el trigger genérico de auditoría sobre todas las tablas operativas.
+7. `migrations/0006_rls_fase2.sql`
+8. `migrations/0007_storage_fase2.sql` — bucket `documentos` (fotos y
+   papeles de entradas/salidas).
+9. `migrations/0008_realtime_fase2.sql` — habilita Realtime para que el
+   dashboard se actualice en vivo entre usuarios.
 
 ## Crear el primer administrador
 

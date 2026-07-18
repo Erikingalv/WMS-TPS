@@ -1,11 +1,17 @@
 import type { LucideIcon } from "lucide-react";
 import {
-  ArrowLeftRight,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Bell,
   Boxes,
+  ClipboardCheck,
   FileBarChart,
+  History,
   LayoutDashboard,
   MapPin,
   Package,
+  ScanLine,
+  Shuffle,
   UserCog,
   Users,
 } from "lucide-react";
@@ -29,6 +35,15 @@ export const NAV_CATALOGO: NavItem[] = [
   { href: "/ubicaciones", label: "Ubicaciones", icon: MapPin },
 ];
 
+export const NAV_OPERACION: NavItem[] = [
+  { href: "/entradas", label: "Entradas", icon: ArrowDownToLine },
+  { href: "/salidas", label: "Salidas", icon: ArrowUpFromLine },
+  { href: "/inventario", label: "Inventario", icon: Boxes },
+  { href: "/movimientos", label: "Movimientos internos", icon: Shuffle },
+  { href: "/escanear", label: "Escanear", icon: ScanLine },
+  { href: "/historial", label: "Historial", icon: History },
+];
+
 export const NAV_ADMIN: NavItem[] = [
   {
     href: "/usuarios",
@@ -41,8 +56,9 @@ export const NAV_ADMIN: NavItem[] = [
 // Módulos de fases siguientes — se muestran atenuados para anticipar el
 // mapa completo del sistema (ver documento de diseño, sección Navegación).
 export const NAV_PROXIMAMENTE: { label: string; icon: LucideIcon }[] = [
-  { label: "Entradas y salidas", icon: ArrowLeftRight },
-  { label: "Inventario", icon: Boxes },
+  { label: "Reservas", icon: ClipboardCheck },
+  { label: "Auditorías", icon: ClipboardCheck },
+  { label: "Alertas", icon: Bell },
   { label: "Reportes", icon: FileBarChart },
 ];
 
