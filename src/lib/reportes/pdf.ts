@@ -1,8 +1,6 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
 
 const MARGEN = 40;
-const ALTO_PAGINA = 792; // carta, en puntos
-const ANCHO_PAGINA = 612;
 const ALTO_RENGLON = 18;
 const TINTA = rgb(0.125, 0.121, 0.109); // #201F1C
 const TINTA_SUAVE = rgb(0.36, 0.34, 0.3);
@@ -18,18 +16,24 @@ export async function generarPdfTabla(
   titulo: string,
   subtitulo: string,
   columnas: ColumnaPdf[],
-  filas: string[][]
+  filas: string[][],
+  opciones?: { orientacion?: "vertical" | "horizontal"; filasNegrita?: number[] }
 ): Promise<Uint8Array> {
+  const horizontal = opciones?.orientacion === "horizontal";
+  const anchoPagina = horizontal ? 792 : 612;
+  const altoPagina = horizontal ? 612 : 792;
+  const filasNegrita = new Set(opciones?.filasNegrita ?? []);
+
   const doc = await PDFDocument.create();
   const fuente = await doc.embedFont(StandardFonts.Helvetica);
   const fuenteBold = await doc.embedFont(StandardFonts.HelveticaBold);
 
-  const anchoUtil = ANCHO_PAGINA - MARGEN * 2;
+  const anchoUtil = anchoPagina - MARGEN * 2;
   const sumaProporciones = columnas.reduce((s, c) => s + c.ancho, 0);
   const anchosPx = columnas.map((c) => (c.ancho / sumaProporciones) * anchoUtil);
 
-  let page = doc.addPage([ANCHO_PAGINA, ALTO_PAGINA]);
-  let y = ALTO_PAGINA - MARGEN;
+  let page = doc.addPage([anchoPagina, altoPagina]);
+  let y = altoPagina - MARGEN;
 
   function dibujarEncabezadoPagina(primeraPagina: boolean) {
     if (primeraPagina) {
@@ -47,7 +51,8 @@ export async function generarPdfTabla(
     });
     let x = MARGEN + 4;
     columnas.forEach((col, i) => {
-      page.drawText(col.encabezado, { x, y, size: 8.5, font: fuenteBold, color: TINTA });
+      const texto = truncarTexto(col.encabezado, fuenteBold, 8.5, anchosPx[i] - 8);
+      page.drawText(texto, { x, y, size: 8.5, font: fuenteBold, color: TINTA });
       x += anchosPx[i];
     });
     y -= ALTO_RENGLON;
@@ -55,17 +60,19 @@ export async function generarPdfTabla(
 
   dibujarEncabezadoPagina(true);
 
-  for (const fila of filas) {
+  filas.forEach((fila, filaIdx) => {
     if (y < MARGEN + ALTO_RENGLON) {
-      page = doc.addPage([ANCHO_PAGINA, ALTO_PAGINA]);
-      y = ALTO_PAGINA - MARGEN;
+      page = doc.addPage([anchoPagina, altoPagina]);
+      y = altoPagina - MARGEN;
       dibujarEncabezadoPagina(false);
     }
 
+    const negrita = filasNegrita.has(filaIdx);
+    const fuenteFila = negrita ? fuenteBold : fuente;
     let x = MARGEN + 4;
     fila.forEach((celda, i) => {
-      const texto = truncarTexto(celda ?? "", fuente, 9, anchosPx[i] - 8);
-      page.drawText(texto, { x, y, size: 9, font: fuente, color: TINTA });
+      const texto = truncarTexto(celda ?? "", fuenteFila, 9, anchosPx[i] - 8);
+      page.drawText(texto, { x, y, size: 9, font: fuenteFila, color: TINTA });
       x += anchosPx[i];
     });
 
@@ -77,7 +84,7 @@ export async function generarPdfTabla(
     });
 
     y -= ALTO_RENGLON;
-  }
+  });
 
   if (filas.length === 0) {
     page.drawText("Sin datos para los filtros seleccionados.", {

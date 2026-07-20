@@ -9,6 +9,10 @@ function inicioDeHoyIso() {
   return d.toISOString();
 }
 
+function hoyFecha() {
+  return new Date().toISOString().slice(0, 10);
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const hoy = inicioDeHoyIso();
@@ -42,6 +46,8 @@ export default async function DashboardPage() {
   const mas60 = diasPorLote.filter((d) => d >= 60).length;
   const mas90 = diasPorLote.filter((d) => d >= 90).length;
 
+  const hoyStr = hoyFecha();
+
   return (
     <div className="flex flex-col gap-8">
       <RealtimeRefresher tables={["entradas", "salidas", "movimientos_internos", "inventario_lote_ubicacion"]} />
@@ -58,10 +64,10 @@ export default async function DashboardPage() {
           Inventario
         </p>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <KpiCard label="Tarimas almacenadas" value={tarimasOcupadas} />
-          <KpiCard label="Piezas totales" value={piezasTotales} />
-          <KpiCard label="Espacios disponibles" value={espaciosDisponibles} sub="tarimas" />
-          <KpiCard label="Ocupación de la bodega" value={`${ocupacionPct}%`} />
+          <KpiCard label="Tarimas almacenadas" value={tarimasOcupadas} href="/inventario" />
+          <KpiCard label="Piezas totales" value={piezasTotales} href="/inventario" />
+          <KpiCard label="Espacios disponibles" value={espaciosDisponibles} sub="tarimas" href="/ubicaciones" />
+          <KpiCard label="Ocupación de la bodega" value={`${ocupacionPct}%`} href="/ubicaciones" />
         </div>
       </section>
 
@@ -70,10 +76,10 @@ export default async function DashboardPage() {
           Movimientos de hoy
         </p>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <KpiCard label="Entradas del día" value={entradasHoy ?? 0} />
-          <KpiCard label="Salidas del día" value={salidasHoy ?? 0} />
-          <KpiCard label="Clientes activos" value={clientesActivos ?? 0} />
-          <KpiCard label="Capacidad total" value={capacidadTotal} sub="tarimas" />
+          <KpiCard label="Entradas del día" value={entradasHoy ?? 0} href={`/entradas?desde=${hoyStr}&hasta=${hoyStr}`} />
+          <KpiCard label="Salidas del día" value={salidasHoy ?? 0} href={`/salidas?desde=${hoyStr}&hasta=${hoyStr}`} />
+          <KpiCard label="Clientes activos" value={clientesActivos ?? 0} href="/clientes" />
+          <KpiCard label="Capacidad total" value={capacidadTotal} sub="tarimas" href="/ubicaciones" />
         </div>
       </section>
 

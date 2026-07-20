@@ -3,7 +3,8 @@ import ExcelJS from "exceljs";
 export async function generarExcelTabla(
   hoja: string,
   columnas: { encabezado: string; ancho: number }[],
-  filas: (string | number)[][]
+  filas: (string | number)[][],
+  opciones?: { filasNegrita?: number[] }
 ): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "WMS";
@@ -19,7 +20,11 @@ export async function generarExcelTabla(
     fgColor: { argb: "FFE1EBEA" },
   };
 
-  filas.forEach((fila) => sheet.addRow(fila));
+  const filasNegrita = new Set(opciones?.filasNegrita ?? []);
+  filas.forEach((fila, i) => {
+    const row = sheet.addRow(fila);
+    if (filasNegrita.has(i)) row.font = { bold: true };
+  });
 
   const buffer = await workbook.xlsx.writeBuffer();
   return Buffer.from(buffer);

@@ -223,18 +223,32 @@ export async function GET(request: NextRequest) {
       fmt(l.costo_total),
     ]);
     if (lineas.length > 0) {
-      const totalGeneral = lineas.reduce((s, l) => s + l.costo_total, 0);
-      filas.push(["", "", "", "", "", "", "", "", "TOTAL", fmt(totalGeneral)]);
+      const suma = (f: (l: (typeof lineas)[number]) => number) => lineas.reduce((s, l) => s + f(l), 0);
+      filas.push([
+        "TOTAL",
+        "",
+        "",
+        "",
+        fmt(suma((l) => l.costo_almacenaje)),
+        String(suma((l) => l.tarimas_entrada)),
+        fmt(suma((l) => l.costo_maniobra_entrada)),
+        String(suma((l) => l.tarimas_salida)),
+        fmt(suma((l) => l.costo_maniobra_salida)),
+        fmt(suma((l) => l.costo_total)),
+      ]);
     }
   }
 
   const nombreArchivo = `${tipo}-${formatearFecha(new Date().toISOString()).replace(/\s/g, "-")}`;
 
+  const esCargosConTotal = tipo === "cargos" && filas.length > 0 && filas[filas.length - 1][0] === "TOTAL";
+
   if (formato === "excel") {
     const buffer = await generarExcelTabla(
       TITULOS[tipo],
       columnas.map((c) => ({ encabezado: c.encabezado, ancho: c.ancho * 8 })),
-      filas
+      filas,
+      { filasNegrita: esCargosConTotal ? [filas.length - 1] : [] }
     );
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
@@ -245,7 +259,10 @@ export async function GET(request: NextRequest) {
   }
 
   const subtitulo = `Generado el ${formatearFechaHora(new Date().toISOString())} · ${filas.length} registros`;
-  const pdfBytes = await generarPdfTabla(TITULOS[tipo], subtitulo, columnas, filas);
+  const pdfBytes = await generarPdfTabla(TITULOS[tipo], subtitulo, columnas, filas, {
+    orientacion: tipo === "cargos" ? "horizontal" : "vertical",
+    filasNegrita: esCargosConTotal ? [filas.length - 1] : [],
+  });
   return new NextResponse(new Uint8Array(pdfBytes), {
     headers: {
       "Content-Type": "application/pdf",
