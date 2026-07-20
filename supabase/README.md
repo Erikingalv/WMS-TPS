@@ -67,6 +67,12 @@ esta misma carpeta funciona con `supabase db push` sin cambios.
     hora de carga/descarga. Reemplaza `registrar_entrada`/`registrar_salida`
     para que usen la fecha/hora capturada en vez de `now()`.
 
+## Cobro por maniobra
+
+17. `migrations/0016_maniobras_tarifas.sql` — agrega a `tarifas_almacenaje`
+    `costo_maniobra_entrada` y `costo_maniobra_salida` (por tarima), usados
+    por el reporte "Cargos por periodo".
+
 ## Crear el primer administrador
 
 El trigger `on_auth_user_created` crea automáticamente una fila en
