@@ -16,6 +16,8 @@ export async function guardarTarifa(clienteId: string, formData: FormData) {
 
   const nombre = String(formData.get("nombre") ?? "").trim() || "Tarifa estándar";
   const periodicidad = String(formData.get("periodicidad") ?? "diario");
+  const costo_maniobra_entrada = Number(formData.get("costo_maniobra_entrada") ?? 0) || 0;
+  const costo_maniobra_salida = Number(formData.get("costo_maniobra_salida") ?? 0) || 0;
 
   let escalones: EscalonEntrada[] = [];
   try {
@@ -33,7 +35,13 @@ export async function guardarTarifa(clienteId: string, formData: FormData) {
 
   const { data: tarifa, error } = await supabase
     .from("tarifas_almacenaje")
-    .insert({ cliente_id: clienteId, nombre, periodicidad: periodicidad as "diario" | "semanal" | "mensual" })
+    .insert({
+      cliente_id: clienteId,
+      nombre,
+      periodicidad: periodicidad as "diario" | "semanal" | "mensual",
+      costo_maniobra_entrada,
+      costo_maniobra_salida,
+    })
     .select()
     .single();
 

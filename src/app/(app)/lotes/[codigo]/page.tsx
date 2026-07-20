@@ -1,12 +1,13 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { Package } from "lucide-react";
+import { Package, FileText } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { urlPublica } from "@/lib/supabase/storage";
 import { generarQrDataUrl } from "@/lib/qr";
 import { diasDesde, formatearFecha, formatearFechaHora } from "@/lib/utils/dates";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
+import { AbrirComprobante } from "@/components/lotes/AbrirComprobante";
 import type {
   ArchivoAdjunto,
   Cliente,
@@ -46,16 +47,19 @@ function detalleLogistico(mov: {
 }
 
 type Movimiento =
-  | { tipo: "entrada"; fecha: string; detalle: string }
-  | { tipo: "salida"; fecha: string; detalle: string }
-  | { tipo: "movimiento"; fecha: string; detalle: string };
+  | { tipo: "entrada"; id: string; fecha: string; detalle: string }
+  | { tipo: "salida"; id: string; fecha: string; detalle: string }
+  | { tipo: "movimiento"; id: string; fecha: string; detalle: string };
 
 export default async function LoteDetallePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ codigo: string }>;
+  searchParams: Promise<{ comprobante?: string }>;
 }) {
   const { codigo } = await params;
+  const { comprobante } = await searchParams;
   const supabase = await createClient();
 
   const { data: lote } = await supabase
@@ -114,16 +118,19 @@ export default async function LoteDetallePage({
   const movimientos: Movimiento[] = [
     ...(entradas ?? []).map((e) => ({
       tipo: "entrada" as const,
+      id: e.id,
       fecha: e.fecha,
       detalle: `Entrada de ${e.cantidad_piezas} pz / ${e.cantidad_tarimas} tar a ${mapaUbicaciones.get(e.ubicacion_id) ?? "?"}${detalleLogistico(e)}`,
     })),
     ...(salidas ?? []).map((s) => ({
       tipo: "salida" as const,
+      id: s.id,
       fecha: s.fecha,
       detalle: `Salida de ${s.cantidad_piezas} pz / ${s.cantidad_tarimas} tar desde ${mapaUbicaciones.get(s.ubicacion_id) ?? "?"}${s.destino ? ` hacia ${s.destino}` : ""}${detalleLogistico(s)}`,
     })),
     ...(movimientosInternos ?? []).map((m) => ({
       tipo: "movimiento" as const,
+      id: m.id,
       fecha: m.created_at,
       detalle: `Reubicación de ${m.cantidad_piezas} pz / ${m.cantidad_tarimas} tar: ${mapaUbicaciones.get(m.ubicacion_origen_id) ?? "?"} → ${mapaUbicaciones.get(m.ubicacion_destino_id) ?? "?"}`,
     })),
@@ -134,6 +141,7 @@ export default async function LoteDetallePage({
 
   return (
     <div className="flex flex-col gap-6">
+      <AbrirComprobante comprobante={comprobante ?? null} />
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">
@@ -182,15 +190,24 @@ export default async function LoteDetallePage({
             <h2 className="mb-3 text-sm font-semibold text-ink">Historial del lote</h2>
             <ol className="flex flex-col gap-3">
               {movimientos.map((m, i) => (
-                <li key={i} className="flex gap-3 text-sm">
+                <li key={i} className="flex items-start gap-3 text-sm">
                   <Badge
                     tone={m.tipo === "entrada" ? "ok" : m.tipo === "salida" ? "crit" : "info"}
                   >
                     {m.tipo}
                   </Badge>
-                  <div>
+                  <div className="flex-1">
                     <p className="text-ink">{m.detalle}</p>
                     <p className="text-xs text-ink-faint">{formatearFechaHora(m.fecha)}</p>
+                    {(m.tipo === "entrada" || m.tipo === "salida") && (
+                      <a
+                        href={`/api/comprobante/${m.tipo}/${m.id}`}
+                        target="_blank"
+                        className="mt-1 inline-flex items-center gap-1 text-xs text-accent hover:underline"
+                      >
+                        <FileText size={12} /> Comprobante
+                      </a>
+                    )}
                   </div>
                 </li>
               ))}

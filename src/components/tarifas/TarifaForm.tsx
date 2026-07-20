@@ -67,6 +67,32 @@ export function TarifaForm({
         </Select>
       </div>
 
+      <div className="rounded-lg border border-line p-4">
+        <p className="mb-1 text-[13px] font-medium text-ink-soft">Cobro por maniobra</p>
+        <p className="mb-3 text-xs text-ink-faint">
+          Costo fijo por tarima, aparte del almacenaje: se cobra una vez por cada tarima que entra
+          y una vez por cada tarima que sale.
+        </p>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Input
+            label="$ por tarima de entrada"
+            name="costo_maniobra_entrada"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={tarifaActual?.costo_maniobra_entrada ?? 0}
+          />
+          <Input
+            label="$ por tarima de salida"
+            name="costo_maniobra_salida"
+            type="number"
+            min="0"
+            step="0.01"
+            defaultValue={tarifaActual?.costo_maniobra_salida ?? 0}
+          />
+        </div>
+      </div>
+
       <div>
         <div className="mb-2 flex items-center justify-between">
           <p className="text-[13px] font-medium text-ink-soft">Escalones por día almacenado</p>

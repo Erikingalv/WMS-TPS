@@ -2,15 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generarPdfTabla, type ColumnaPdf } from "@/lib/reportes/pdf";
 import { generarExcelTabla } from "@/lib/reportes/excel";
+import { calcularCargosPeriodo } from "@/lib/reportes/cargosPeriodo";
+import {
+  COLUMNAS_ENTRADAS,
+  COLUMNAS_SALIDAS,
+  DEFAULT_COLS_ENTRADAS,
+  DEFAULT_COLS_SALIDAS,
+  type FilaEntrada,
+  type FilaSalida,
+} from "@/lib/reportes/columnas";
 import { diasDesde, formatearFecha, formatearFechaHora } from "@/lib/utils/dates";
-import type {
-  Cliente,
-  Lote,
-  Producto,
-  Ubicacion,
-} from "@/lib/types/database";
+import type { Cliente, Lote, Producto, Ubicacion } from "@/lib/types/database";
 
-type TipoReporte = "inventario" | "entradas" | "salidas" | "movimientos" | "ocupacion";
+type TipoReporte = "inventario" | "entradas" | "salidas" | "movimientos" | "ocupacion" | "cargos";
 
 const TITULOS: Record<TipoReporte, string> = {
   inventario: "Inventario",
@@ -18,6 +22,7 @@ const TITULOS: Record<TipoReporte, string> = {
   salidas: "Salidas",
   movimientos: "Movimientos internos",
   ocupacion: "Ocupación de la bodega",
+  cargos: "Cargos por periodo",
 };
 
 export async function GET(request: NextRequest) {
@@ -27,6 +32,7 @@ export async function GET(request: NextRequest) {
   const clienteId = searchParams.get("cliente_id") || null;
   const desde = searchParams.get("desde") || null;
   const hasta = searchParams.get("hasta") || null;
+  const colsParam = searchParams.getAll("cols");
 
   if (!(tipo in TITULOS)) {
     return NextResponse.json({ error: "Tipo de reporte inválido" }, { status: 400 });
@@ -82,81 +88,47 @@ export async function GET(request: NextRequest) {
   }
 
   if (tipo === "entradas") {
-    columnas = [
-      { encabezado: "Fecha", ancho: 1.6 },
-      { encabezado: "Cliente", ancho: 2.2 },
-      { encabezado: "Producto", ancho: 2.2 },
-      { encabezado: "Lote", ancho: 2 },
-      { encabezado: "Piezas", ancho: 1 },
-      { encabezado: "Tarimas", ancho: 1 },
-      { encabezado: "Ubic.", ancho: 1.2 },
-    ];
-    type Fila = {
-      fecha: string;
-      cantidad_piezas: number;
-      cantidad_tarimas: number;
-      clientes: Pick<Cliente, "nombre"> | null;
-      productos: Pick<Producto, "nombre"> | null;
-      lotes: Pick<Lote, "codigo_lote"> | null;
-      ubicaciones: Pick<Ubicacion, "codigo"> | null;
-    };
+    const claves = (colsParam.length > 0 ? colsParam : DEFAULT_COLS_ENTRADAS).filter(
+      (k) => k in COLUMNAS_ENTRADAS
+    );
+    const defs = claves.map((k) => COLUMNAS_ENTRADAS[k]);
+    columnas = defs.map((d) => ({ encabezado: d.label, ancho: d.ancho }));
+
     let query = supabase
       .from("entradas")
-      .select("fecha, cantidad_piezas, cantidad_tarimas, clientes(nombre), productos(nombre), lotes(codigo_lote), ubicaciones(codigo)")
+      .select(
+        "*, clientes(nombre), productos(nombre, sku), lotes(codigo_lote, estado), ubicaciones(codigo), recibio:recibio_usuario_id(nombre)"
+      )
       .order("fecha", { ascending: false })
       .limit(1000);
     if (clienteId) query = query.eq("cliente_id", clienteId);
     if (desde) query = query.gte("fecha", desde);
     if (hasta) query = query.lte("fecha", hasta);
     const { data } = await query;
-    filas = ((data ?? []) as unknown as Fila[]).map((r) => [
-      formatearFechaHora(r.fecha),
-      r.clientes?.nombre ?? "—",
-      r.productos?.nombre ?? "—",
-      r.lotes?.codigo_lote ?? "—",
-      String(r.cantidad_piezas),
-      String(r.cantidad_tarimas),
-      r.ubicaciones?.codigo ?? "—",
-    ]);
+    const filasTyped = (data ?? []) as unknown as FilaEntrada[];
+    filas = filasTyped.map((f) => defs.map((d) => d.valor(f)));
   }
 
   if (tipo === "salidas") {
-    columnas = [
-      { encabezado: "Fecha", ancho: 1.6 },
-      { encabezado: "Cliente", ancho: 2 },
-      { encabezado: "Producto", ancho: 2 },
-      { encabezado: "Lote", ancho: 1.8 },
-      { encabezado: "Piezas", ancho: 1 },
-      { encabezado: "Tarimas", ancho: 1 },
-      { encabezado: "Destino", ancho: 1.8 },
-    ];
-    type Fila = {
-      fecha: string;
-      cantidad_piezas: number;
-      cantidad_tarimas: number;
-      destino: string | null;
-      clientes: Pick<Cliente, "nombre"> | null;
-      productos: Pick<Producto, "nombre"> | null;
-      lotes: Pick<Lote, "codigo_lote"> | null;
-    };
+    const claves = (colsParam.length > 0 ? colsParam : DEFAULT_COLS_SALIDAS).filter(
+      (k) => k in COLUMNAS_SALIDAS
+    );
+    const defs = claves.map((k) => COLUMNAS_SALIDAS[k]);
+    columnas = defs.map((d) => ({ encabezado: d.label, ancho: d.ancho }));
+
     let query = supabase
       .from("salidas")
-      .select("fecha, cantidad_piezas, cantidad_tarimas, destino, clientes(nombre), productos(nombre), lotes(codigo_lote)")
+      .select(
+        "*, clientes(nombre), productos(nombre, sku), lotes(codigo_lote, estado), ubicaciones(codigo), autorizo:autorizo_usuario_id(nombre)"
+      )
       .order("fecha", { ascending: false })
       .limit(1000);
     if (clienteId) query = query.eq("cliente_id", clienteId);
     if (desde) query = query.gte("fecha", desde);
     if (hasta) query = query.lte("fecha", hasta);
     const { data } = await query;
-    filas = ((data ?? []) as unknown as Fila[]).map((r) => [
-      formatearFechaHora(r.fecha),
-      r.clientes?.nombre ?? "—",
-      r.productos?.nombre ?? "—",
-      r.lotes?.codigo_lote ?? "—",
-      String(r.cantidad_piezas),
-      String(r.cantidad_tarimas),
-      r.destino ?? "—",
-    ]);
+    const filasTyped = (data ?? []) as unknown as FilaSalida[];
+    filas = filasTyped.map((f) => defs.map((d) => d.valor(f)));
   }
 
   if (tipo === "movimientos") {
@@ -215,6 +187,45 @@ export async function GET(request: NextRequest) {
       const pct = u.capacidad_max_tarimas > 0 ? Math.round((ocupado / u.capacidad_max_tarimas) * 100) : 0;
       return [u.codigo, u.zona ?? "—", String(u.capacidad_max_tarimas), String(ocupado), `${pct}%`];
     });
+  }
+
+  if (tipo === "cargos") {
+    columnas = [
+      { encabezado: "Lote", ancho: 1.6 },
+      { encabezado: "Cliente", ancho: 1.8 },
+      { encabezado: "Producto", ancho: 2.2 },
+      { encabezado: "Días", ancho: 0.8 },
+      { encabezado: "Cargo almacenaje", ancho: 1.4 },
+      { encabezado: "Tarimas entrada", ancho: 1 },
+      { encabezado: "Maniobra entrada", ancho: 1.3 },
+      { encabezado: "Tarimas salida", ancho: 1 },
+      { encabezado: "Maniobra salida", ancho: 1.3 },
+      { encabezado: "Total", ancho: 1.3 },
+    ];
+    if (!desde || !hasta) {
+      return NextResponse.json(
+        { error: "Selecciona un rango de fechas (desde/hasta) para el reporte de cargos" },
+        { status: 400 }
+      );
+    }
+    const fmt = (n: number) => `$${n.toFixed(2)}`;
+    const lineas = await calcularCargosPeriodo(supabase, { desde, hasta, clienteId });
+    filas = lineas.map((l) => [
+      l.codigo_lote,
+      l.cliente,
+      l.producto,
+      String(l.dias_con_existencia),
+      fmt(l.costo_almacenaje),
+      String(l.tarimas_entrada),
+      fmt(l.costo_maniobra_entrada),
+      String(l.tarimas_salida),
+      fmt(l.costo_maniobra_salida),
+      fmt(l.costo_total),
+    ]);
+    if (lineas.length > 0) {
+      const totalGeneral = lineas.reduce((s, l) => s + l.costo_total, 0);
+      filas.push(["", "", "", "", "", "", "", "", "TOTAL", fmt(totalGeneral)]);
+    }
   }
 
   const nombreArchivo = `${tipo}-${formatearFecha(new Date().toISOString()).replace(/\s/g, "-")}`;

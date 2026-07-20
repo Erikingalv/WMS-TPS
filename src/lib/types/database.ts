@@ -256,6 +256,8 @@ export type TarifaAlmacenaje = {
   nombre: string;
   periodicidad: Periodicidad;
   activo: boolean;
+  costo_maniobra_entrada: number;
+  costo_maniobra_salida: number;
   created_at: string;
   updated_at: string;
 };
@@ -414,9 +416,14 @@ export type Database = {
       >;
       tarifas_almacenaje: TableDef<
         TarifaAlmacenaje,
-        Omit<TarifaAlmacenaje, "id" | "created_at" | "updated_at" | "activo"> & {
+        Omit<
+          TarifaAlmacenaje,
+          "id" | "created_at" | "updated_at" | "activo" | "costo_maniobra_entrada" | "costo_maniobra_salida"
+        > & {
           id?: string;
           activo?: boolean;
+          costo_maniobra_entrada?: number;
+          costo_maniobra_salida?: number;
         },
         Partial<Omit<TarifaAlmacenaje, "id">>
       >;

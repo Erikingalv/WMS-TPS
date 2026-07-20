@@ -103,5 +103,5 @@ export async function crearEntrada(formData: FormData) {
     .eq("id", entrada.lote_id)
     .single();
 
-  redirect(`/lotes/${lote?.codigo_lote ?? entrada.lote_id}`);
+  redirect(`/lotes/${lote?.codigo_lote ?? entrada.lote_id}?comprobante=entrada:${entrada.id}`);
 }
