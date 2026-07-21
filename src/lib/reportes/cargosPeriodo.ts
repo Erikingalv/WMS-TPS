@@ -8,6 +8,7 @@ export type CargoPeriodoLinea = {
   codigo_lote: string;
   cliente: string;
   producto: string;
+  sku: string;
   dias_con_existencia: number;
   costo_almacenaje: number;
   tarimas_entrada: number;
@@ -37,12 +38,14 @@ export async function calcularCargosPeriodo(
     Lote,
     "id" | "codigo_lote" | "fecha_ingreso" | "tarimas_inicial" | "producto_id"
   > & {
-    productos: (Pick<Producto, "nombre" | "cliente_id"> & { clientes: Pick<Cliente, "nombre"> | null }) | null;
+    productos:
+      | (Pick<Producto, "nombre" | "sku" | "cliente_id"> & { clientes: Pick<Cliente, "nombre"> | null })
+      | null;
   };
 
   const { data: lotesRaw } = await supabase
     .from("lotes")
-    .select("id, codigo_lote, fecha_ingreso, tarimas_inicial, producto_id, productos(nombre, cliente_id, clientes(nombre))")
+    .select("id, codigo_lote, fecha_ingreso, tarimas_inicial, producto_id, productos(nombre, sku, cliente_id, clientes(nombre))")
     .lte("fecha_ingreso", `${hasta}T23:59:59`);
   let lotes = (lotesRaw ?? []) as unknown as LoteConProducto[];
   if (clienteId) lotes = lotes.filter((l) => l.productos?.cliente_id === clienteId);
@@ -143,6 +146,7 @@ export async function calcularCargosPeriodo(
       codigo_lote: lote.codigo_lote,
       cliente: lote.productos?.clientes?.nombre ?? "—",
       producto: lote.productos?.nombre ?? "—",
+      sku: lote.productos?.sku ?? "—",
       dias_con_existencia: diasConExistencia,
       costo_almacenaje: Math.round(costoAlmacenaje * 100) / 100,
       tarimas_entrada: tarimasEntrada,
@@ -154,5 +158,7 @@ export async function calcularCargosPeriodo(
     });
   }
 
-  return lineas.sort((a, b) => a.codigo_lote.localeCompare(b.codigo_lote));
+  return lineas.sort(
+    (a, b) => b.dias_con_existencia - a.dias_con_existencia || a.codigo_lote.localeCompare(b.codigo_lote)
+  );
 }

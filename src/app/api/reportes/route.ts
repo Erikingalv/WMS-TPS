@@ -75,6 +75,10 @@ export async function GET(request: NextRequest) {
       .or("cantidad_piezas.gt.0,cantidad_tarimas.gt.0");
     let filas_ = (data ?? []) as unknown as Fila[];
     if (clienteId) filas_ = filas_.filter((r) => r.lotes?.productos?.cliente_id === clienteId);
+    // De mayor a menor antigüedad (días almacenados).
+    filas_ = filas_.sort(
+      (a, b) => diasDesde(b.lotes?.fecha_ingreso ?? "") - diasDesde(a.lotes?.fecha_ingreso ?? "")
+    );
     filas = filas_.map((r) => [
       r.lotes?.productos?.clientes?.nombre ?? "—",
       r.lotes?.productos?.nombre ?? "—",
@@ -194,6 +198,7 @@ export async function GET(request: NextRequest) {
       { encabezado: "Lote", ancho: 1.6 },
       { encabezado: "Cliente", ancho: 1.8 },
       { encabezado: "Producto", ancho: 2.2 },
+      { encabezado: "SKU", ancho: 1.3 },
       { encabezado: "Días", ancho: 0.8 },
       { encabezado: "Cargo almacenaje", ancho: 1.4 },
       { encabezado: "Tarimas entrada", ancho: 1 },
@@ -209,11 +214,13 @@ export async function GET(request: NextRequest) {
       );
     }
     const fmt = (n: number) => `$${n.toFixed(2)}`;
+    // Ya viene ordenado de mayor a menor antigüedad (días con existencia).
     const lineas = await calcularCargosPeriodo(supabase, { desde, hasta, clienteId });
     filas = lineas.map((l) => [
       l.codigo_lote,
       l.cliente,
       l.producto,
+      l.sku,
       String(l.dias_con_existencia),
       fmt(l.costo_almacenaje),
       String(l.tarimas_entrada),
@@ -226,6 +233,7 @@ export async function GET(request: NextRequest) {
       const suma = (f: (l: (typeof lineas)[number]) => number) => lineas.reduce((s, l) => s + f(l), 0);
       filas.push([
         "TOTAL",
+        "",
         "",
         "",
         "",
