@@ -1,10 +1,11 @@
-import { AlertTriangle, Bell, Info } from "lucide-react";
+import { AlertTriangle, Bell, Info, Settings } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { PUEDE_ATENDER_ALERTAS, tienePermiso } from "@/lib/auth/permisos";
+import { PUEDE_ATENDER_ALERTAS, PUEDE_CONFIGURAR_ALERTAS, tienePermiso } from "@/lib/auth/permisos";
 import { GenerarAlertasButton } from "@/components/alertas/GenerarAlertasButton";
 import { AtenderAlertaButton } from "@/components/alertas/AtenderAlertaButton";
 import { Badge } from "@/components/ui/Badge";
+import { ButtonLink } from "@/components/ui/Button";
 import { formatearFechaHora } from "@/lib/utils/dates";
 import type { NivelAlerta } from "@/lib/types/database";
 
@@ -23,7 +24,7 @@ const TONO_NIVEL: Record<NivelAlerta, "crit" | "warn" | "info"> = {
 export default async function AlertasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ estado?: string }>;
+  searchParams: Promise<{ estado?: string; guardado?: string }>;
 }) {
   const params = await searchParams;
   const soloAbiertas = params.estado !== "todas";
@@ -31,6 +32,7 @@ export default async function AlertasPage({
   const supabase = await createClient();
   const usuario = await getUsuarioActual();
   const puedeAtender = usuario ? tienePermiso(usuario.rol, PUEDE_ATENDER_ALERTAS) : false;
+  const puedeConfigurar = usuario ? tienePermiso(usuario.rol, PUEDE_CONFIGURAR_ALERTAS) : false;
 
   let query = supabase
     .from("alertas")
@@ -52,8 +54,21 @@ export default async function AlertasPage({
             Antigüedad, ocupación, inventario bajo y caducidad próxima.
           </p>
         </div>
-        {puedeAtender && <GenerarAlertasButton />}
+        <div className="flex gap-3">
+          {puedeConfigurar && (
+            <ButtonLink href="/alertas/configuracion" variant="secondary">
+              <Settings size={16} /> Configurar umbrales
+            </ButtonLink>
+          )}
+          {puedeAtender && <GenerarAlertasButton />}
+        </div>
       </div>
+
+      {params.guardado && (
+        <p className="rounded-lg bg-ok-soft px-3.5 py-2.5 text-sm text-ok">
+          Configuración guardada.
+        </p>
+      )}
 
       <div className="flex gap-2 text-sm">
         <a

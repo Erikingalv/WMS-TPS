@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { signIn } from "@/lib/auth/actions";
 import { Input } from "@/components/ui/Field";
 import { SubmitButton } from "@/components/ui/Button";
@@ -68,6 +69,13 @@ export default async function LoginPage({
           <SubmitButton pendingLabel="Entrando…" className="mt-2 w-full">
             Iniciar sesión
           </SubmitButton>
+
+          <Link
+            href="/forgot-password"
+            className="text-center text-sm text-ink-faint hover:underline"
+          >
+            ¿Olvidaste tu contraseña?
+          </Link>
         </form>
 
         <p className="mt-8 text-center text-xs text-ink-faint">
