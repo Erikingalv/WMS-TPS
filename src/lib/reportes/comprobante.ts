@@ -20,6 +20,7 @@ export interface DatosComprobante {
   campos: CampoComprobante[]; // detalle específico (piezas, tarimas, lote, ubicación, etc.)
   observaciones: string | null;
   nombreEntregaRecibe: string | null; // "Recibió" en entrada, "Autorizó" en salida
+  firmaDigitalPng?: Uint8Array | null; // si ya se firmó digitalmente desde /comprobantes
 }
 
 export async function generarComprobante(datos: DatosComprobante): Promise<Uint8Array> {
@@ -91,18 +92,26 @@ export async function generarComprobante(datos: DatosComprobante): Promise<Uint8
   page.drawText(datos.nombreEntregaRecibe ?? "Sin especificar", { x: MARGEN, y: y - 14, size: 10.5, font: fuente, color: TINTA });
   y -= 60;
 
-  const anchoFirma = (anchoUtil - 30) / 2;
-  const etiquetaIzq = datos.tipo === "entrada" ? "Firma de quien entrega" : "Firma de quien entrega (almacén)";
-  const etiquetaDer = datos.tipo === "entrada" ? "Firma de quien recibe (almacén)" : "Firma de quien recibe";
+  if (datos.firmaDigitalPng) {
+    const imagen = await doc.embedPng(datos.firmaDigitalPng);
+    const anchoImg = 220;
+    const altoImg = (imagen.height / imagen.width) * anchoImg;
+    page.drawText("FIRMA DIGITAL REGISTRADA", { x: MARGEN, y, size: 7.5, font: fuenteBold, color: TINTA_SUAVE });
+    page.drawImage(imagen, { x: MARGEN, y: y - altoImg - 6, width: anchoImg, height: altoImg });
+  } else {
+    const anchoFirma = (anchoUtil - 30) / 2;
+    const etiquetaIzq = datos.tipo === "entrada" ? "Firma de quien entrega" : "Firma de quien entrega (almacén)";
+    const etiquetaDer = datos.tipo === "entrada" ? "Firma de quien recibe (almacén)" : "Firma de quien recibe";
 
-  page.drawLine({ start: { x: MARGEN, y }, end: { x: MARGEN + anchoFirma, y }, thickness: 1, color: TINTA_SUAVE });
-  page.drawText(etiquetaIzq, { x: MARGEN, y: y - 14, size: 9, font: fuente, color: TINTA_SUAVE });
-  page.drawText("Nombre: ______________________________", { x: MARGEN, y: y - 32, size: 9, font: fuente, color: TINTA_SUAVE });
+    page.drawLine({ start: { x: MARGEN, y }, end: { x: MARGEN + anchoFirma, y }, thickness: 1, color: TINTA_SUAVE });
+    page.drawText(etiquetaIzq, { x: MARGEN, y: y - 14, size: 9, font: fuente, color: TINTA_SUAVE });
+    page.drawText("Nombre: ______________________________", { x: MARGEN, y: y - 32, size: 9, font: fuente, color: TINTA_SUAVE });
 
-  const xDer = MARGEN + anchoFirma + 30;
-  page.drawLine({ start: { x: xDer, y }, end: { x: xDer + anchoFirma, y }, thickness: 1, color: TINTA_SUAVE });
-  page.drawText(etiquetaDer, { x: xDer, y: y - 14, size: 9, font: fuente, color: TINTA_SUAVE });
-  page.drawText("Nombre: ______________________________", { x: xDer, y: y - 32, size: 9, font: fuente, color: TINTA_SUAVE });
+    const xDer = MARGEN + anchoFirma + 30;
+    page.drawLine({ start: { x: xDer, y }, end: { x: xDer + anchoFirma, y }, thickness: 1, color: TINTA_SUAVE });
+    page.drawText(etiquetaDer, { x: xDer, y: y - 14, size: 9, font: fuente, color: TINTA_SUAVE });
+    page.drawText("Nombre: ______________________________", { x: xDer, y: y - 32, size: 9, font: fuente, color: TINTA_SUAVE });
+  }
 
   page.drawText(
     `Generado automáticamente · ${new Date().toLocaleString("es-MX")}`,

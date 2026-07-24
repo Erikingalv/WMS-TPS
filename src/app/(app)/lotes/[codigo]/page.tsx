@@ -204,8 +204,7 @@ export default async function LoteDetallePage({
                     <p className="text-xs text-ink-faint">{formatearFechaHora(m.fecha)}</p>
                     {(m.tipo === "entrada" || m.tipo === "salida") && (
                       <a
-                        href={`/api/comprobante/${m.tipo}/${m.id}`}
-                        target="_blank"
+                        href={`/comprobantes/${m.tipo}/${m.id}`}
                         className="mt-1 inline-flex items-center gap-1 text-xs text-accent hover:underline"
                       >
                         <FileText size={12} /> Comprobante

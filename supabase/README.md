@@ -80,6 +80,14 @@ esta misma carpeta funciona con `supabase db push` sin cambios.
     `salidas` (rango de ese movimiento puntual), para poder identificar
     físicamente cuáles tarimas entraron y cuáles salieron.
 
+## Firma digital de comprobantes
+
+19. `migrations/0018_firma_comprobantes.sql` — agrega `firma_digital_url` a
+    `entradas` (salidas ya la tenía) y la función
+    `guardar_firma_comprobante` (solo permite fijarla una vez), usada por
+    `/comprobantes` para firmar desde el celular o la computadora después
+    de registrado el movimiento.
+
 ## Crear el primer administrador
 
 El trigger `on_auth_user_created` crea automáticamente una fila en

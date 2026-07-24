@@ -7,6 +7,7 @@ import {
   ClipboardCheck,
   DollarSign,
   FileBarChart,
+  FileSignature,
   History,
   LayoutDashboard,
   MapPin,
@@ -39,6 +40,7 @@ export const NAV_CATALOGO: NavItem[] = [
 export const NAV_OPERACION: NavItem[] = [
   { href: "/entradas", label: "Entradas", icon: ArrowDownToLine },
   { href: "/salidas", label: "Salidas", icon: ArrowUpFromLine },
+  { href: "/comprobantes", label: "Comprobantes", icon: FileSignature },
   { href: "/inventario", label: "Inventario", icon: Boxes },
   { href: "/movimientos", label: "Movimientos internos", icon: Shuffle },
   { href: "/reservas", label: "Reservas", icon: ClipboardCheck },

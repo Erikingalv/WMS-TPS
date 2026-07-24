@@ -121,6 +121,7 @@ export type Entrada = {
   presentacion: string | null;
   tarima_desde: number | null;
   tarima_hasta: number | null;
+  firma_digital_url: string | null;
 };
 
 export type Salida = {
@@ -449,6 +450,14 @@ export type Database = {
     };
     Views: Record<string, never>;
     Functions: {
+      guardar_firma_comprobante: {
+        Args: {
+          p_tipo: string;
+          p_id: string;
+          p_firma_digital_url: string;
+        };
+        Returns: void;
+      };
       registrar_entrada: {
         Args: {
           p_cliente_id: string;

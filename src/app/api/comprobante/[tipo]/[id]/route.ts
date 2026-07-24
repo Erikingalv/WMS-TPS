@@ -4,6 +4,17 @@ import { generarComprobante, type CampoComprobante } from "@/lib/reportes/compro
 import { formatearFecha } from "@/lib/utils/dates";
 import type { FilaEntrada, FilaSalida } from "@/lib/reportes/columnas";
 
+async function obtenerFirmaPng(url: string | null): Promise<Uint8Array | null> {
+  if (!url) return null;
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return null;
+    return new Uint8Array(await resp.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ tipo: string; id: string }> }
@@ -58,6 +69,7 @@ export async function GET(
       campos,
       observaciones: data.observaciones,
       nombreEntregaRecibe: data.recibio?.nombre ?? null,
+      firmaDigitalPng: await obtenerFirmaPng(data.firma_digital_url),
     });
 
     return new NextResponse(new Uint8Array(pdf), {
@@ -112,6 +124,7 @@ export async function GET(
     campos,
     observaciones: data.observaciones,
     nombreEntregaRecibe: data.autorizo?.nombre ?? null,
+    firmaDigitalPng: await obtenerFirmaPng(data.firma_digital_url),
   });
 
   return new NextResponse(new Uint8Array(pdf), {
