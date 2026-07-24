@@ -111,8 +111,9 @@ export function SalidaForm({
         {existenciasDelProducto.map((e, i) => (
           <option key={`${e.lote_id}:${e.ubicacion_id}`} value={`${e.lote_id}:${e.ubicacion_id}`}>
             {i === 0 ? "★ " : ""}
-            {e.codigo_lote} · {e.ubicacion_codigo} · disp. {e.cantidad_piezas} pz / {e.cantidad_tarimas} tar ·{" "}
-            {diasDesde(e.fecha_ingreso)} días
+            {e.codigo_lote} · {e.ubicacion_codigo}
+            {e.tarima_desde != null ? ` · tarimas ${e.tarima_desde}-${e.tarima_hasta}` : ""} · disp.{" "}
+            {e.cantidad_piezas} pz / {e.cantidad_tarimas} tar · {diasDesde(e.fecha_ingreso)} días
           </option>
         ))}
       </Select>
@@ -167,6 +168,20 @@ export function SalidaForm({
 
       <div className="flex flex-col gap-3 rounded-lg border border-line p-4">
         <p className="text-sm font-semibold text-ink">Datos logísticos (opcional)</p>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Input
+            label="Tarima desde"
+            name="tarima_desde"
+            type="number"
+            min="1"
+            hint={
+              seleccionada?.tarima_desde != null
+                ? `Rango del lote: ${seleccionada.tarima_desde}-${seleccionada.tarima_hasta}`
+                : "Identificador físico de las tarimas que salen"
+            }
+          />
+          <Input label="Tarima hasta" name="tarima_hasta" type="number" min="1" />
+        </div>
         <div className="grid gap-5 sm:grid-cols-2">
           <Input label="Cajas por pallet" name="cajas_por_pallet" type="number" min="1" />
           <Input label="Cantidad por caja" name="cantidad_por_caja" type="number" min="1" />

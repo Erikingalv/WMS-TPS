@@ -73,6 +73,13 @@ esta misma carpeta funciona con `supabase db push` sin cambios.
     `costo_maniobra_entrada` y `costo_maniobra_salida` (por tarima), usados
     por el reporte "Cargos por periodo".
 
+## Identificador de tarimas
+
+18. `migrations/0017_identificador_tarimas.sql` — agrega `tarima_desde` /
+    `tarima_hasta` a `lotes` (rango con el que llegó), `entradas` y
+    `salidas` (rango de ese movimiento puntual), para poder identificar
+    físicamente cuáles tarimas entraron y cuáles salieron.
+
 ## Crear el primer administrador
 
 El trigger `on_auth_user_created` crea automáticamente una fila en

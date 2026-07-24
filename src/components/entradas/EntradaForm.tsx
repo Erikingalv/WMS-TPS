@@ -117,6 +117,16 @@ export function EntradaForm({
       <div className="flex flex-col gap-3 rounded-lg border border-line p-4">
         <p className="text-sm font-semibold text-ink">Datos logísticos (opcional)</p>
         <div className="grid gap-5 sm:grid-cols-2">
+          <Input
+            label="Tarima desde"
+            name="tarima_desde"
+            type="number"
+            min="1"
+            hint="Identificador físico, ej. tarimas 1-20"
+          />
+          <Input label="Tarima hasta" name="tarima_hasta" type="number" min="1" />
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
           <Input label="Cajas por pallet" name="cajas_por_pallet" type="number" min="1" />
           <Input label="Cantidad por caja" name="cantidad_por_caja" type="number" min="1" />
         </div>

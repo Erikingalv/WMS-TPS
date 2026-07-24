@@ -83,6 +83,8 @@ export type Lote = {
   qr_payload: string;
   created_at: string;
   updated_at: string;
+  tarima_desde: number | null;
+  tarima_hasta: number | null;
 };
 
 export type InventarioLoteUbicacion = {
@@ -117,6 +119,8 @@ export type Entrada = {
   numero_contenedor: string | null;
   numero_bl: string | null;
   presentacion: string | null;
+  tarima_desde: number | null;
+  tarima_hasta: number | null;
 };
 
 export type Salida = {
@@ -146,6 +150,8 @@ export type Salida = {
   numero_contenedor: string | null;
   numero_bl: string | null;
   presentacion: string | null;
+  tarima_desde: number | null;
+  tarima_hasta: number | null;
 };
 
 export type MovimientoInterno = {
@@ -464,6 +470,8 @@ export type Database = {
           p_numero_contenedor?: string | null;
           p_numero_bl?: string | null;
           p_presentacion?: string | null;
+          p_tarima_desde?: number | null;
+          p_tarima_hasta?: number | null;
         };
         Returns: Entrada;
       };
@@ -490,6 +498,8 @@ export type Database = {
           p_numero_contenedor?: string | null;
           p_numero_bl?: string | null;
           p_presentacion?: string | null;
+          p_tarima_desde?: number | null;
+          p_tarima_hasta?: number | null;
         };
         Returns: Salida;
       };

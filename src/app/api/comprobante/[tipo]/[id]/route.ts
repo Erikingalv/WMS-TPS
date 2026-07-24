@@ -32,6 +32,10 @@ export async function GET(
       { etiqueta: "SKU", valor: data.productos?.sku ?? "—" },
       { etiqueta: "Piezas", valor: String(data.cantidad_piezas) },
       { etiqueta: "Tarimas", valor: String(data.cantidad_tarimas) },
+      {
+        etiqueta: "Identificador de tarimas",
+        valor: data.tarima_desde != null ? `${data.tarima_desde}-${data.tarima_hasta}` : "—",
+      },
       { etiqueta: "Ubicación", valor: data.ubicaciones?.codigo ?? "—" },
       { etiqueta: "Presentación", valor: data.presentacion ?? "—" },
       { etiqueta: "Cajas por pallet", valor: data.cajas_por_pallet != null ? String(data.cajas_por_pallet) : "—" },
@@ -80,6 +84,10 @@ export async function GET(
     { etiqueta: "SKU", valor: data.productos?.sku ?? "—" },
     { etiqueta: "Piezas", valor: String(data.cantidad_piezas) },
     { etiqueta: "Tarimas", valor: String(data.cantidad_tarimas) },
+    {
+      etiqueta: "Identificador de tarimas",
+      valor: data.tarima_desde != null ? `${data.tarima_desde}-${data.tarima_hasta}` : "—",
+    },
     { etiqueta: "Ubicación", valor: data.ubicaciones?.codigo ?? "—" },
     { etiqueta: "Destino", valor: data.destino ?? "—" },
     { etiqueta: "Transportista", valor: data.transportista ?? "—" },

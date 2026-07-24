@@ -30,6 +30,8 @@ export async function crearEntrada(formData: FormData) {
   const numero_contenedor = textoONulo(formData.get("numero_contenedor"));
   const numero_bl = textoONulo(formData.get("numero_bl"));
   const presentacion = textoONulo(formData.get("presentacion"));
+  const tarima_desde = numeroONulo(formData.get("tarima_desde"));
+  const tarima_hasta = numeroONulo(formData.get("tarima_hasta"));
 
   const { data: entrada, error } = await supabase.rpc("registrar_entrada", {
     p_cliente_id: cliente_id,
@@ -51,6 +53,8 @@ export async function crearEntrada(formData: FormData) {
     p_numero_contenedor: numero_contenedor,
     p_numero_bl: numero_bl,
     p_presentacion: presentacion,
+    p_tarima_desde: tarima_desde,
+    p_tarima_hasta: tarima_hasta,
   });
 
   if (error || !entrada) {

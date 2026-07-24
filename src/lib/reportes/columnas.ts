@@ -29,6 +29,11 @@ export const COLUMNAS_ENTRADAS: Record<string, { label: string; ancho: number; v
   presentacion: { label: "Presentación", ancho: 1.3, valor: (f) => f.presentacion ?? "—" },
   piezas: { label: "Piezas", ancho: 1, valor: (f) => String(f.cantidad_piezas) },
   tarimas: { label: "Tarimas", ancho: 1, valor: (f) => String(f.cantidad_tarimas) },
+  rango_tarimas: {
+    label: "Identificador de tarimas",
+    ancho: 1.4,
+    valor: (f) => (f.tarima_desde != null ? `${f.tarima_desde}-${f.tarima_hasta}` : "—"),
+  },
   cajas_pallet: { label: "Cajas/pallet", ancho: 1, valor: (f) => (f.cajas_por_pallet != null ? String(f.cajas_por_pallet) : "—") },
   cant_caja: { label: "Cant./caja", ancho: 1, valor: (f) => (f.cantidad_por_caja != null ? String(f.cantidad_por_caja) : "—") },
   categoria: { label: "Categoría", ancho: 1.6, valor: (f) => f.categoria_producto ?? "—" },
@@ -53,6 +58,11 @@ export const COLUMNAS_SALIDAS: Record<string, { label: string; ancho: number; va
   presentacion: { label: "Presentación", ancho: 1.3, valor: (f) => f.presentacion ?? "—" },
   piezas: { label: "Piezas", ancho: 1, valor: (f) => String(f.cantidad_piezas) },
   tarimas: { label: "Tarimas", ancho: 1, valor: (f) => String(f.cantidad_tarimas) },
+  rango_tarimas: {
+    label: "Identificador de tarimas",
+    ancho: 1.4,
+    valor: (f) => (f.tarima_desde != null ? `${f.tarima_desde}-${f.tarima_hasta}` : "—"),
+  },
   cajas_pallet: { label: "Cajas/pallet", ancho: 1, valor: (f) => (f.cajas_por_pallet != null ? String(f.cajas_por_pallet) : "—") },
   cant_caja: { label: "Cant./caja", ancho: 1, valor: (f) => (f.cantidad_por_caja != null ? String(f.cantidad_por_caja) : "—") },
   categoria: { label: "Categoría", ancho: 1.6, valor: (f) => f.categoria_producto ?? "—" },

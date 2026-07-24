@@ -12,6 +12,8 @@ export type ExistenciaDisponible = {
   ubicacion_codigo: string;
   cantidad_piezas: number;
   cantidad_tarimas: number;
+  tarima_desde: number | null;
+  tarima_hasta: number | null;
 };
 
 type ExistenciaRaw = {
@@ -19,7 +21,10 @@ type ExistenciaRaw = {
   ubicacion_id: string;
   cantidad_piezas: number;
   cantidad_tarimas: number;
-  lotes: Pick<Lote, "codigo_lote" | "fecha_ingreso" | "producto_id" | "estado"> | null;
+  lotes: Pick<
+    Lote,
+    "codigo_lote" | "fecha_ingreso" | "producto_id" | "estado" | "tarima_desde" | "tarima_hasta"
+  > | null;
   ubicaciones: Pick<Ubicacion, "codigo"> | null;
 };
 
@@ -34,7 +39,7 @@ export async function obtenerExistenciasDisponibles(
     supabase
       .from("inventario_lote_ubicacion")
       .select(
-        "lote_id, ubicacion_id, cantidad_piezas, cantidad_tarimas, lotes(codigo_lote, fecha_ingreso, producto_id, estado), ubicaciones(codigo)"
+        "lote_id, ubicacion_id, cantidad_piezas, cantidad_tarimas, lotes(codigo_lote, fecha_ingreso, producto_id, estado, tarima_desde, tarima_hasta), ubicaciones(codigo)"
       ),
     supabase
       .from("reservas")
@@ -66,6 +71,8 @@ export async function obtenerExistenciasDisponibles(
         ubicacion_codigo: e.ubicaciones?.codigo ?? "—",
         cantidad_piezas: e.cantidad_piezas - r.piezas,
         cantidad_tarimas: e.cantidad_tarimas - r.tarimas,
+        tarima_desde: e.lotes!.tarima_desde,
+        tarima_hasta: e.lotes!.tarima_hasta,
       };
     })
     .filter((e) => e.cantidad_piezas > 0 || e.cantidad_tarimas > 0);

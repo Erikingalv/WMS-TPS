@@ -31,9 +31,12 @@ function detalleLogistico(mov: {
   lote_2: string | null;
   cajas_por_pallet: number | null;
   cantidad_por_caja: number | null;
+  tarima_desde: number | null;
+  tarima_hasta: number | null;
 }) {
   const partes = [
     `carga/descarga ${mov.hora_carga_descarga.slice(0, 5)}`,
+    mov.tarima_desde != null ? `tarimas ${mov.tarima_desde}-${mov.tarima_hasta}` : null,
     mov.numero_contenedor ? `contenedor ${mov.numero_contenedor}` : null,
     mov.numero_bl ? `BL ${mov.numero_bl}` : null,
     mov.presentacion,
@@ -286,6 +289,14 @@ export default async function LoteDetallePage({
                   {lote.piezas_inicial} pz · {lote.tarimas_inicial} tar
                 </dd>
               </div>
+              {lote.tarima_desde != null && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-ink-faint">Identificador de tarimas</dt>
+                  <dd className="tabular-nums text-ink">
+                    {lote.tarima_desde}-{lote.tarima_hasta}
+                  </dd>
+                </div>
+              )}
             </dl>
           </Card>
         </div>
