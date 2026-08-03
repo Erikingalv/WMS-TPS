@@ -10,6 +10,7 @@ import { Card } from "@/components/ui/Card";
 import { SubmitButton, ButtonLink } from "@/components/ui/Button";
 import { SignaturePad } from "@/components/salidas/SignaturePad";
 import type { FilaEntrada, FilaSalida } from "@/lib/reportes/columnas";
+import { formatearTarimas } from "@/lib/utils/tarimas";
 import { firmarComprobante } from "./actions";
 
 export default async function ComprobanteDetallePage({
@@ -95,16 +96,39 @@ export default async function ComprobanteDetallePage({
             <Campo etiqueta="Ubicación" valor={data.ubicaciones?.codigo ?? "—"} />
             <Campo etiqueta="Piezas" valor={String(data.cantidad_piezas)} />
             <Campo etiqueta="Tarimas" valor={String(data.cantidad_tarimas)} />
-            {data.tarima_desde != null && (
-              <Campo
-                etiqueta="Identificador de tarimas"
-                valor={`${data.tarima_desde}-${data.tarima_hasta}`}
-              />
+            {(() => {
+              const tarimaNumeros = "tarima_numeros" in data ? data.tarima_numeros : null;
+              const rango =
+                tarimaNumeros && tarimaNumeros.length > 0
+                  ? formatearTarimas(tarimaNumeros)
+                  : data.tarima_desde != null
+                    ? `${data.tarima_desde}-${data.tarima_hasta}`
+                    : null;
+              return rango ? <Campo etiqueta="Identificador de tarimas" valor={rango} /> : null;
+            })()}
+            <Campo etiqueta="Presentación" valor={data.presentacion ?? "—"} />
+            <Campo
+              etiqueta="Cajas por pallet"
+              valor={data.cajas_por_pallet != null ? String(data.cajas_por_pallet) : "—"}
+            />
+            <Campo
+              etiqueta="Cantidad por caja"
+              valor={data.cantidad_por_caja != null ? String(data.cantidad_por_caja) : "—"}
+            />
+            <Campo etiqueta="Categoría" valor={data.categoria_producto ?? "—"} />
+            <Campo etiqueta="Lote 1" valor={data.lote_1 ?? "—"} />
+            <Campo etiqueta="Lote 2 (SAP)" valor={data.lote_2 ?? "—"} />
+            <Campo etiqueta="Contenedor" valor={data.numero_contenedor ?? "—"} />
+            <Campo etiqueta="BL / Referencia" valor={data.numero_bl ?? "—"} />
+            {tipo === "entrada" && "peso_kg" in data && (
+              <Campo etiqueta="Peso (kg)" valor={data.peso_kg != null ? String(data.peso_kg) : "—"} />
             )}
             {tipo === "salida" && "destino" in data && (
               <>
                 <Campo etiqueta="Destino" valor={data.destino ?? "—"} />
+                <Campo etiqueta="Transportista" valor={data.transportista ?? "—"} />
                 <Campo etiqueta="Placas / unidad" valor={data.placas ?? "—"} />
+                <Campo etiqueta="Operador" valor={data.operador ?? "—"} />
               </>
             )}
             {data.observaciones && (

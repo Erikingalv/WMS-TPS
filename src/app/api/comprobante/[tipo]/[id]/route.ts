@@ -116,6 +116,7 @@ export async function GET(
     { etiqueta: "Cantidad por caja", valor: data.cantidad_por_caja != null ? String(data.cantidad_por_caja) : "—" },
     { etiqueta: "Categoría", valor: data.categoria_producto ?? "—" },
     { etiqueta: "Lote 1", valor: data.lote_1 ?? "—" },
+    { etiqueta: "Lote 2 (SAP)", valor: data.lote_2 ?? "—" },
     { etiqueta: "Contenedor", valor: data.numero_contenedor ?? "—" },
     { etiqueta: "BL / Referencia", valor: data.numero_bl ?? "—" },
   ];
