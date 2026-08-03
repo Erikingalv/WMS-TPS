@@ -1,7 +1,19 @@
 import type { createClient } from "@/lib/supabase/server";
-import type { Lote, Ubicacion } from "@/lib/types/database";
+import type { Entrada, Lote, Ubicacion } from "@/lib/types/database";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+const CAMPOS_ENTRADA_ORIGEN = [
+  "cajas_por_pallet",
+  "cantidad_por_caja",
+  "categoria_producto",
+  "presentacion",
+  "lote_1",
+  "lote_2",
+  "numero_contenedor",
+  "numero_bl",
+] as const;
+type EntradaOrigen = Pick<Entrada, (typeof CAMPOS_ENTRADA_ORIGEN)[number]>;
 
 export type ExistenciaDisponible = {
   lote_id: string;
@@ -14,17 +26,18 @@ export type ExistenciaDisponible = {
   cantidad_tarimas: number;
   tarima_desde: number | null;
   tarima_hasta: number | null;
-};
+} & EntradaOrigen;
 
 type ExistenciaRaw = {
   lote_id: string;
   ubicacion_id: string;
   cantidad_piezas: number;
   cantidad_tarimas: number;
-  lotes: Pick<
-    Lote,
-    "codigo_lote" | "fecha_ingreso" | "producto_id" | "estado" | "tarima_desde" | "tarima_hasta"
-  > | null;
+  lotes:
+    | (Pick<Lote, "codigo_lote" | "fecha_ingreso" | "producto_id" | "estado" | "tarima_desde" | "tarima_hasta"> & {
+        entradas: EntradaOrigen[] | null;
+      })
+    | null;
   ubicaciones: Pick<Ubicacion, "codigo"> | null;
 };
 
@@ -39,7 +52,10 @@ export async function obtenerExistenciasDisponibles(
     supabase
       .from("inventario_lote_ubicacion")
       .select(
-        "lote_id, ubicacion_id, cantidad_piezas, cantidad_tarimas, lotes(codigo_lote, fecha_ingreso, producto_id, estado, tarima_desde, tarima_hasta), ubicaciones(codigo)"
+        `lote_id, ubicacion_id, cantidad_piezas, cantidad_tarimas,
+         lotes(codigo_lote, fecha_ingreso, producto_id, estado, tarima_desde, tarima_hasta,
+           entradas(${CAMPOS_ENTRADA_ORIGEN.join(", ")})),
+         ubicaciones(codigo)`
       ),
     supabase
       .from("reservas")
@@ -62,6 +78,7 @@ export async function obtenerExistenciasDisponibles(
     .map((e) => {
       const key = `${e.lote_id}:${e.ubicacion_id}`;
       const r = reservado.get(key) ?? { piezas: 0, tarimas: 0 };
+      const entradaOrigen = e.lotes!.entradas?.[0] ?? null;
       return {
         lote_id: e.lote_id,
         ubicacion_id: e.ubicacion_id,
@@ -73,6 +90,14 @@ export async function obtenerExistenciasDisponibles(
         cantidad_tarimas: e.cantidad_tarimas - r.tarimas,
         tarima_desde: e.lotes!.tarima_desde,
         tarima_hasta: e.lotes!.tarima_hasta,
+        cajas_por_pallet: entradaOrigen?.cajas_por_pallet ?? null,
+        cantidad_por_caja: entradaOrigen?.cantidad_por_caja ?? null,
+        categoria_producto: entradaOrigen?.categoria_producto ?? null,
+        presentacion: entradaOrigen?.presentacion ?? null,
+        lote_1: entradaOrigen?.lote_1 ?? null,
+        lote_2: entradaOrigen?.lote_2 ?? null,
+        numero_contenedor: entradaOrigen?.numero_contenedor ?? null,
+        numero_bl: entradaOrigen?.numero_bl ?? null,
       };
     })
     .filter((e) => e.cantidad_piezas > 0 || e.cantidad_tarimas > 0);

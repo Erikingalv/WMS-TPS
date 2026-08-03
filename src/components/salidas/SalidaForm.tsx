@@ -167,7 +167,13 @@ export function SalidaForm({
       </Select>
 
       <div className="flex flex-col gap-3 rounded-lg border border-line p-4">
-        <p className="text-sm font-semibold text-ink">Datos logísticos (opcional)</p>
+        <div>
+          <p className="text-sm font-semibold text-ink">Datos logísticos (opcional)</p>
+          <p className="text-xs text-ink-faint">
+            Se precargan con lo capturado en la entrada del lote elegido; puedes cambiarlos si es
+            necesario.
+          </p>
+        </div>
         <Input
           label="Identificador de tarimas que salen"
           name="tarima_numeros_texto"
@@ -178,24 +184,65 @@ export function SalidaForm({
           }
         />
         <div className="grid gap-5 sm:grid-cols-2">
-          <Input label="Cajas por pallet" name="cajas_por_pallet" type="number" min="1" />
-          <Input label="Cantidad por caja" name="cantidad_por_caja" type="number" min="1" />
+          <Input
+            key={`cajas_por_pallet-${combo}`}
+            label="Cajas por pallet"
+            name="cajas_por_pallet"
+            type="number"
+            min="1"
+            defaultValue={seleccionada?.cajas_por_pallet ?? ""}
+          />
+          <Input
+            key={`cantidad_por_caja-${combo}`}
+            label="Cantidad por caja"
+            name="cantidad_por_caja"
+            type="number"
+            min="1"
+            defaultValue={seleccionada?.cantidad_por_caja ?? ""}
+          />
         </div>
         <div className="grid gap-5 sm:grid-cols-2">
-          <Input label="Categoría de producto" name="categoria_producto" />
           <Input
+            key={`categoria_producto-${combo}`}
+            label="Categoría de producto"
+            name="categoria_producto"
+            defaultValue={seleccionada?.categoria_producto ?? ""}
+          />
+          <Input
+            key={`presentacion-${combo}`}
             label="Presentación"
             name="presentacion"
+            defaultValue={seleccionada?.presentacion ?? ""}
             hint="Ej. cajas, atados, bultos…"
           />
         </div>
         <div className="grid gap-5 sm:grid-cols-2">
-          <Input label="Lote 1" name="lote_1" />
-          <Input label="Lote 2" name="lote_2" />
+          <Input
+            key={`lote_1-${combo}`}
+            label="Lote 1"
+            name="lote_1"
+            defaultValue={seleccionada?.lote_1 ?? ""}
+          />
+          <Input
+            key={`lote_2-${combo}`}
+            label="Lote 2"
+            name="lote_2"
+            defaultValue={seleccionada?.lote_2 ?? ""}
+          />
         </div>
         <div className="grid gap-5 sm:grid-cols-2">
-          <Input label="Número de contenedor" name="numero_contenedor" />
-          <Input label="Número de BL" name="numero_bl" />
+          <Input
+            key={`numero_contenedor-${combo}`}
+            label="Número de contenedor"
+            name="numero_contenedor"
+            defaultValue={seleccionada?.numero_contenedor ?? ""}
+          />
+          <Input
+            key={`numero_bl-${combo}`}
+            label="Número de BL"
+            name="numero_bl"
+            defaultValue={seleccionada?.numero_bl ?? ""}
+          />
         </div>
       </div>
 
