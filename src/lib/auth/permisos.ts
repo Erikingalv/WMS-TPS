@@ -28,6 +28,8 @@ export const PUEDE_ATENDER_ALERTAS: RolUsuario[] = ["administrador", "supervisor
 
 export const PUEDE_CONFIGURAR_ALERTAS: RolUsuario[] = ["administrador"];
 
+export const PUEDE_CORREGIR_MOVIMIENTOS: RolUsuario[] = ["administrador"];
+
 export const PUEDE_VER_TARIFAS: RolUsuario[] = ["administrador", "supervisor"];
 
 export const PUEDE_EDITAR_TARIFAS: RolUsuario[] = ["administrador"];

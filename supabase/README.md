@@ -88,6 +88,16 @@ esta misma carpeta funciona con `supabase db push` sin cambios.
     `/comprobantes` para firmar desde el celular o la computadora después
     de registrado el movimiento.
 
+## Corrección de movimientos (solo administrador)
+
+20. `migrations/0019_correccion_movimientos.sql` — agrega trigger de
+    auditoría en update de `entradas`/`salidas` (antes solo insert) y las
+    funciones `corregir_entrada`/`corregir_salida` (solo rol
+    administrador), que si cambian piezas/tarimas propagan el ajuste a
+    `inventario_lote_ubicacion` y `lotes.piezas_inicial/tarimas_inicial`,
+    validando que no dejen el inventario negativo ni por debajo de lo ya
+    reservado.
+
 ## Crear el primer administrador
 
 El trigger `on_auth_user_created` crea automáticamente una fila en

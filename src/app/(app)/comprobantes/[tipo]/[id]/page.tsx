@@ -1,7 +1,9 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { FileDown } from "lucide-react";
+import { FileDown, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { getUsuarioActual } from "@/lib/auth/session";
+import { PUEDE_CORREGIR_MOVIMIENTOS, tienePermiso } from "@/lib/auth/permisos";
 import { formatearFecha } from "@/lib/utils/dates";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -47,6 +49,8 @@ export default async function ComprobanteDetallePage({
   };
 
   const firmarConDatos = firmarComprobante.bind(null, tipo, id);
+  const usuario = await getUsuarioActual();
+  const puedeCorregir = usuario ? tienePermiso(usuario.rol, PUEDE_CORREGIR_MOVIMIENTOS) : false;
 
   return (
     <div className="flex flex-col gap-6">
@@ -60,9 +64,16 @@ export default async function ComprobanteDetallePage({
           </div>
           <p className="mt-1 font-mono text-sm text-ink-soft">{data.lotes?.codigo_lote ?? "—"}</p>
         </div>
-        <ButtonLink href={`/api/comprobante/${tipo}/${id}`} variant="secondary">
-          <FileDown size={16} /> Descargar PDF
-        </ButtonLink>
+        <div className="flex gap-3">
+          {puedeCorregir && (
+            <ButtonLink href={`/${tipo === "entrada" ? "entradas" : "salidas"}/${id}/editar`} variant="secondary">
+              <Pencil size={16} /> Corregir
+            </ButtonLink>
+          )}
+          <ButtonLink href={`/api/comprobante/${tipo}/${id}`} variant="secondary">
+            <FileDown size={16} /> Descargar PDF
+          </ButtonLink>
+        </div>
       </div>
 
       {firmado && (

@@ -458,6 +458,49 @@ export type Database = {
         };
         Returns: void;
       };
+      corregir_entrada: {
+        Args: {
+          p_entrada_id: string;
+          p_cantidad_piezas: number;
+          p_cantidad_tarimas: number;
+          p_peso_kg?: number | null;
+          p_observaciones?: string | null;
+          p_cajas_por_pallet?: number | null;
+          p_cantidad_por_caja?: number | null;
+          p_categoria_producto?: string | null;
+          p_lote_1?: string | null;
+          p_lote_2?: string | null;
+          p_numero_contenedor?: string | null;
+          p_numero_bl?: string | null;
+          p_presentacion?: string | null;
+          p_tarima_desde?: number | null;
+          p_tarima_hasta?: number | null;
+        };
+        Returns: Entrada;
+      };
+      corregir_salida: {
+        Args: {
+          p_salida_id: string;
+          p_cantidad_piezas: number;
+          p_cantidad_tarimas: number;
+          p_destino?: string | null;
+          p_transportista?: string | null;
+          p_placas?: string | null;
+          p_operador?: string | null;
+          p_observaciones?: string | null;
+          p_cajas_por_pallet?: number | null;
+          p_cantidad_por_caja?: number | null;
+          p_categoria_producto?: string | null;
+          p_lote_1?: string | null;
+          p_lote_2?: string | null;
+          p_numero_contenedor?: string | null;
+          p_numero_bl?: string | null;
+          p_presentacion?: string | null;
+          p_tarima_desde?: number | null;
+          p_tarima_hasta?: number | null;
+        };
+        Returns: Salida;
+      };
       registrar_entrada: {
         Args: {
           p_cliente_id: string;

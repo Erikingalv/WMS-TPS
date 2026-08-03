@@ -1,9 +1,11 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { Package, FileText } from "lucide-react";
+import { Package, FileText, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { urlPublica } from "@/lib/supabase/storage";
 import { generarQrDataUrl } from "@/lib/qr";
+import { getUsuarioActual } from "@/lib/auth/session";
+import { PUEDE_CORREGIR_MOVIMIENTOS, tienePermiso } from "@/lib/auth/permisos";
 import { diasDesde, formatearFecha, formatearFechaHora } from "@/lib/utils/dates";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -59,11 +61,13 @@ export default async function LoteDetallePage({
   searchParams,
 }: {
   params: Promise<{ codigo: string }>;
-  searchParams: Promise<{ comprobante?: string }>;
+  searchParams: Promise<{ comprobante?: string; corregido?: string }>;
 }) {
   const { codigo } = await params;
-  const { comprobante } = await searchParams;
+  const { comprobante, corregido } = await searchParams;
   const supabase = await createClient();
+  const usuario = await getUsuarioActual();
+  const puedeCorregir = usuario ? tienePermiso(usuario.rol, PUEDE_CORREGIR_MOVIMIENTOS) : false;
 
   const { data: lote } = await supabase
     .from("lotes")
@@ -145,6 +149,11 @@ export default async function LoteDetallePage({
   return (
     <div className="flex flex-col gap-6">
       <AbrirComprobante comprobante={comprobante ?? null} />
+      {corregido && (
+        <p className="rounded-lg bg-ok-soft px-3.5 py-2.5 text-sm text-ok">
+          Corrección guardada. Inventario y cargos actualizados.
+        </p>
+      )}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex flex-wrap items-center gap-3">
@@ -203,12 +212,22 @@ export default async function LoteDetallePage({
                     <p className="text-ink">{m.detalle}</p>
                     <p className="text-xs text-ink-faint">{formatearFechaHora(m.fecha)}</p>
                     {(m.tipo === "entrada" || m.tipo === "salida") && (
-                      <a
-                        href={`/comprobantes/${m.tipo}/${m.id}`}
-                        className="mt-1 inline-flex items-center gap-1 text-xs text-accent hover:underline"
-                      >
-                        <FileText size={12} /> Comprobante
-                      </a>
+                      <div className="mt-1 flex items-center gap-3">
+                        <a
+                          href={`/comprobantes/${m.tipo}/${m.id}`}
+                          className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
+                        >
+                          <FileText size={12} /> Comprobante
+                        </a>
+                        {puedeCorregir && (
+                          <a
+                            href={`/${m.tipo === "entrada" ? "entradas" : "salidas"}/${m.id}/editar`}
+                            className="inline-flex items-center gap-1 text-xs text-ink-faint hover:text-accent hover:underline"
+                          >
+                            <Pencil size={12} /> Editar
+                          </a>
+                        )}
+                      </div>
                     )}
                   </div>
                 </li>
