@@ -5,6 +5,7 @@ import { PUEDE_CORREGIR_MOVIMIENTOS, tienePermiso } from "@/lib/auth/permisos";
 import { Input, Textarea } from "@/components/ui/Field";
 import { SubmitButton, ButtonLink } from "@/components/ui/Button";
 import type { FilaSalida } from "@/lib/reportes/columnas";
+import { formatearTarimas } from "@/lib/utils/tarimas";
 import { corregirSalidaAction } from "./actions";
 
 export default async function EditarSalidaPage({
@@ -30,6 +31,15 @@ export default async function EditarSalidaPage({
 
   if (!salidaRaw) notFound();
   const salida = salidaRaw as unknown as FilaSalida;
+
+  const tarimasTexto =
+    salida.tarima_numeros && salida.tarima_numeros.length > 0
+      ? formatearTarimas(salida.tarima_numeros)
+      : salida.tarima_desde != null
+        ? salida.tarima_desde === salida.tarima_hasta
+          ? String(salida.tarima_desde)
+          : `${salida.tarima_desde}-${salida.tarima_hasta}`
+        : "";
 
   const corregirConId = corregirSalidaAction.bind(null, id);
 
@@ -72,10 +82,12 @@ export default async function EditarSalidaPage({
           />
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Input label="Tarima desde" name="tarima_desde" type="number" min="1" defaultValue={salida.tarima_desde ?? ""} />
-          <Input label="Tarima hasta" name="tarima_hasta" type="number" min="1" defaultValue={salida.tarima_hasta ?? ""} />
-        </div>
+        <Input
+          label="Identificador de tarimas"
+          name="tarima_numeros_texto"
+          defaultValue={tarimasTexto}
+          hint='Números sueltos y/o rangos mezclados, ej. "1,5,15-17"'
+        />
 
         <div className="grid gap-5 sm:grid-cols-2">
           <Input label="Destino" name="destino" defaultValue={salida.destino ?? ""} />

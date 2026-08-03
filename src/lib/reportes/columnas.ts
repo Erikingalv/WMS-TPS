@@ -1,5 +1,6 @@
 import type { Cliente, Entrada, Lote, Producto, Salida, Ubicacion, Usuario } from "@/lib/types/database";
 import { formatearFecha } from "@/lib/utils/dates";
+import { formatearTarimas } from "@/lib/utils/tarimas";
 
 // Columnas seleccionables para Entradas/Salidas — mismos apartados que el
 // Excel de control que ya llevaba Erik, para que el reporte le sirva tal
@@ -61,7 +62,12 @@ export const COLUMNAS_SALIDAS: Record<string, { label: string; ancho: number; va
   rango_tarimas: {
     label: "Identificador de tarimas",
     ancho: 1.4,
-    valor: (f) => (f.tarima_desde != null ? `${f.tarima_desde}-${f.tarima_hasta}` : "—"),
+    valor: (f) =>
+      f.tarima_numeros && f.tarima_numeros.length > 0
+        ? formatearTarimas(f.tarima_numeros)
+        : f.tarima_desde != null
+          ? `${f.tarima_desde}-${f.tarima_hasta}`
+          : "—",
   },
   cajas_pallet: { label: "Cajas/pallet", ancho: 1, valor: (f) => (f.cajas_por_pallet != null ? String(f.cajas_por_pallet) : "—") },
   cant_caja: { label: "Cant./caja", ancho: 1, valor: (f) => (f.cantidad_por_caja != null ? String(f.cantidad_por_caja) : "—") },

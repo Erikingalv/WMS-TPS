@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { generarComprobante, type CampoComprobante } from "@/lib/reportes/comprobante";
 import { formatearFecha } from "@/lib/utils/dates";
 import type { FilaEntrada, FilaSalida } from "@/lib/reportes/columnas";
+import { formatearTarimas } from "@/lib/utils/tarimas";
 
 async function obtenerFirmaPng(url: string | null): Promise<Uint8Array | null> {
   if (!url) return null;
@@ -98,7 +99,12 @@ export async function GET(
     { etiqueta: "Tarimas", valor: String(data.cantidad_tarimas) },
     {
       etiqueta: "Identificador de tarimas",
-      valor: data.tarima_desde != null ? `${data.tarima_desde}-${data.tarima_hasta}` : "—",
+      valor:
+        data.tarima_numeros && data.tarima_numeros.length > 0
+          ? formatearTarimas(data.tarima_numeros)
+          : data.tarima_desde != null
+            ? `${data.tarima_desde}-${data.tarima_hasta}`
+            : "—",
     },
     { etiqueta: "Ubicación", valor: data.ubicaciones?.codigo ?? "—" },
     { etiqueta: "Destino", valor: data.destino ?? "—" },

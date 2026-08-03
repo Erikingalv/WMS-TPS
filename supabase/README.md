@@ -98,6 +98,15 @@ esta misma carpeta funciona con `supabase db push` sin cambios.
     validando que no dejen el inventario negativo ni por debajo de lo ya
     reservado.
 
+## Tarimas individuales/no contiguas en Salidas
+
+21. `migrations/0020_tarimas_individuales_salidas.sql` — agrega
+    `tarima_numeros integer[]` a `salidas` (una salida no siempre es un
+    rango continuo como una entrada) y actualiza
+    `registrar_salida`/`corregir_salida` para aceptarlo, derivando
+    `tarima_desde`/`tarima_hasta` como min/max para no romper lo que ya
+    los usaba.
+
 ## Crear el primer administrador
 
 El trigger `on_auth_user_created` crea automáticamente una fila en

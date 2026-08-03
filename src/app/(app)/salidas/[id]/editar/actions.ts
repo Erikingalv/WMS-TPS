@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { numeroONulo, textoONulo } from "@/lib/utils/forms";
+import { parsearTarimas } from "@/lib/utils/tarimas";
 
 export async function corregirSalidaAction(id: string, formData: FormData) {
   const supabase = await createClient();
@@ -23,8 +24,19 @@ export async function corregirSalidaAction(id: string, formData: FormData) {
   const numero_contenedor = textoONulo(formData.get("numero_contenedor"));
   const numero_bl = textoONulo(formData.get("numero_bl"));
   const presentacion = textoONulo(formData.get("presentacion"));
-  const tarima_desde = numeroONulo(formData.get("tarima_desde"));
-  const tarima_hasta = numeroONulo(formData.get("tarima_hasta"));
+  const tarimaNumerosTexto = String(formData.get("tarima_numeros_texto") ?? "").trim();
+
+  let tarima_numeros: number[] | null = null;
+  if (tarimaNumerosTexto) {
+    tarima_numeros = parsearTarimas(tarimaNumerosTexto);
+    if (!tarima_numeros) {
+      redirect(
+        `/salidas/${id}/editar?error=${encodeURIComponent(
+          `No entendí el identificador de tarimas "${tarimaNumerosTexto}". Usa números separados por coma y/o rangos, ej. "1,5,15-17".`
+        )}`
+      );
+    }
+  }
 
   const { data: salida, error } = await supabase.rpc("corregir_salida", {
     p_salida_id: id,
@@ -43,8 +55,7 @@ export async function corregirSalidaAction(id: string, formData: FormData) {
     p_numero_contenedor: numero_contenedor,
     p_numero_bl: numero_bl,
     p_presentacion: presentacion,
-    p_tarima_desde: tarima_desde,
-    p_tarima_hasta: tarima_hasta,
+    p_tarima_numeros: tarima_numeros,
   });
 
   if (error || !salida) {

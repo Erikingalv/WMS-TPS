@@ -153,6 +153,7 @@ export type Salida = {
   presentacion: string | null;
   tarima_desde: number | null;
   tarima_hasta: number | null;
+  tarima_numeros: number[] | null;
 };
 
 export type MovimientoInterno = {
@@ -498,6 +499,7 @@ export type Database = {
           p_presentacion?: string | null;
           p_tarima_desde?: number | null;
           p_tarima_hasta?: number | null;
+          p_tarima_numeros?: number[] | null;
         };
         Returns: Salida;
       };
@@ -552,6 +554,7 @@ export type Database = {
           p_presentacion?: string | null;
           p_tarima_desde?: number | null;
           p_tarima_hasta?: number | null;
+          p_tarima_numeros?: number[] | null;
         };
         Returns: Salida;
       };

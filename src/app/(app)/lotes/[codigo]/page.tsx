@@ -10,6 +10,7 @@ import { diasDesde, formatearFecha, formatearFechaHora } from "@/lib/utils/dates
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { AbrirComprobante } from "@/components/lotes/AbrirComprobante";
+import { formatearTarimas } from "@/lib/utils/tarimas";
 import type {
   ArchivoAdjunto,
   Cliente,
@@ -35,10 +36,17 @@ function detalleLogistico(mov: {
   cantidad_por_caja: number | null;
   tarima_desde: number | null;
   tarima_hasta: number | null;
+  tarima_numeros?: number[] | null;
 }) {
+  const rangoTarimas =
+    mov.tarima_numeros && mov.tarima_numeros.length > 0
+      ? formatearTarimas(mov.tarima_numeros)
+      : mov.tarima_desde != null
+        ? `${mov.tarima_desde}-${mov.tarima_hasta}`
+        : null;
   const partes = [
     `carga/descarga ${mov.hora_carga_descarga.slice(0, 5)}`,
-    mov.tarima_desde != null ? `tarimas ${mov.tarima_desde}-${mov.tarima_hasta}` : null,
+    rangoTarimas ? `tarimas ${rangoTarimas}` : null,
     mov.numero_contenedor ? `contenedor ${mov.numero_contenedor}` : null,
     mov.numero_bl ? `BL ${mov.numero_bl}` : null,
     mov.presentacion,

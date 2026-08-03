@@ -168,20 +168,15 @@ export function SalidaForm({
 
       <div className="flex flex-col gap-3 rounded-lg border border-line p-4">
         <p className="text-sm font-semibold text-ink">Datos logísticos (opcional)</p>
-        <div className="grid gap-5 sm:grid-cols-2">
-          <Input
-            label="Tarima desde"
-            name="tarima_desde"
-            type="number"
-            min="1"
-            hint={
-              seleccionada?.tarima_desde != null
-                ? `Rango del lote: ${seleccionada.tarima_desde}-${seleccionada.tarima_hasta}`
-                : "Identificador físico de las tarimas que salen"
-            }
-          />
-          <Input label="Tarima hasta" name="tarima_hasta" type="number" min="1" />
-        </div>
+        <Input
+          label="Identificador de tarimas que salen"
+          name="tarima_numeros_texto"
+          hint={
+            seleccionada?.tarima_desde != null
+              ? `Rango del lote: ${seleccionada.tarima_desde}-${seleccionada.tarima_hasta} · admite números sueltos y/o rangos, ej. "1,5,15-17"`
+              : `Admite números sueltos y/o rangos mezclados, ej. "1,5,15-17"`
+          }
+        />
         <div className="grid gap-5 sm:grid-cols-2">
           <Input label="Cajas por pallet" name="cajas_por_pallet" type="number" min="1" />
           <Input label="Cantidad por caja" name="cantidad_por_caja" type="number" min="1" />
