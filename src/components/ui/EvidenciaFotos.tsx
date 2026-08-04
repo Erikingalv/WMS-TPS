@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Camera, ImagePlus, X } from "lucide-react";
+import { comprimirImagen } from "@/lib/utils/imagenes";
 
 type FotoPendiente = { file: File; url: string };
 
@@ -17,6 +18,7 @@ export function EvidenciaFotos({
   label?: string;
 }) {
   const [fotos, setFotos] = useState<FotoPendiente[]>([]);
+  const [procesando, setProcesando] = useState(false);
   const inputFormRef = useRef<HTMLInputElement>(null);
   const inputCamaraRef = useRef<HTMLInputElement>(null);
   const inputGaleriaRef = useRef<HTMLInputElement>(null);
@@ -27,12 +29,18 @@ export function EvidenciaFotos({
     if (inputFormRef.current) inputFormRef.current.files = dt.files;
   }
 
-  function agregar(files: FileList | null) {
+  async function agregar(files: FileList | null) {
     if (!files || files.length === 0) return;
-    const nuevas = Array.from(files).map((file) => ({ file, url: URL.createObjectURL(file) }));
-    const lista = [...fotos, ...nuevas];
-    setFotos(lista);
-    sincronizarInput(lista);
+    setProcesando(true);
+    try {
+      const comprimidas = await Promise.all(Array.from(files).map((file) => comprimirImagen(file)));
+      const nuevas = comprimidas.map((file) => ({ file, url: URL.createObjectURL(file) }));
+      const lista = [...fotos, ...nuevas];
+      setFotos(lista);
+      sincronizarInput(lista);
+    } finally {
+      setProcesando(false);
+    }
   }
 
   function quitar(idx: number) {
@@ -67,21 +75,24 @@ export function EvidenciaFotos({
 
         <button
           type="button"
+          disabled={procesando}
           onClick={() => inputCamaraRef.current?.click()}
-          className="flex size-20 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-line text-ink-faint transition-colors hover:border-accent hover:text-accent"
+          className="flex size-20 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-line text-ink-faint transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
         >
           <Camera size={18} />
           <span className="text-[11px]">Tomar foto</span>
         </button>
         <button
           type="button"
+          disabled={procesando}
           onClick={() => inputGaleriaRef.current?.click()}
-          className="flex size-20 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-line text-ink-faint transition-colors hover:border-accent hover:text-accent"
+          className="flex size-20 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-line text-ink-faint transition-colors hover:border-accent hover:text-accent disabled:opacity-50"
         >
           <ImagePlus size={18} />
           <span className="text-[11px]">Subir fotos</span>
         </button>
       </div>
+      {procesando && <p className="text-xs text-ink-faint">Comprimiendo fotos…</p>}
 
       <input
         ref={inputCamaraRef}
