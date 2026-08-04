@@ -18,14 +18,17 @@ type Tipo = (typeof TIPOS)[number]["value"];
 
 export function ReporteForm({
   clientes,
+  columnasInventario,
   columnasEntradas,
   columnasSalidas,
 }: {
   clientes: Pick<Cliente, "id" | "nombre">[];
+  columnasInventario: [string, string][];
   columnasEntradas: [string, string][];
   columnasSalidas: [string, string][];
 }) {
   const [tipo, setTipo] = useState<Tipo>("inventario");
+  const [colsInventario, setColsInventario] = useState<string[]>(columnasInventario.map(([k]) => k));
   const [colsEntradas, setColsEntradas] = useState<string[]>(
     ["fecha", "hora", "cliente", "producto", "lote", "piezas", "tarimas", "ubicacion"]
   );
@@ -33,12 +36,21 @@ export function ReporteForm({
     ["fecha", "hora", "cliente", "producto", "lote", "piezas", "tarimas", "destino"]
   );
 
+  const mostrarColumnasInventario = tipo === "inventario";
   const mostrarColumnasEntradas = tipo === "entradas";
   const mostrarColumnasSalidas = tipo === "salidas";
-  const mostrarFechas = tipo === "entradas" || tipo === "salidas" || tipo === "movimientos" || tipo === "cargos";
+  const mostrarFechas = tipo !== "ocupacion";
   const fechasObligatorias = tipo === "cargos";
-  const colsActuales = mostrarColumnasEntradas ? colsEntradas : colsSalidas;
-  const setColsActuales = mostrarColumnasEntradas ? setColsEntradas : setColsSalidas;
+  const colsActuales = mostrarColumnasInventario
+    ? colsInventario
+    : mostrarColumnasEntradas
+      ? colsEntradas
+      : colsSalidas;
+  const setColsActuales = mostrarColumnasInventario
+    ? setColsInventario
+    : mostrarColumnasEntradas
+      ? setColsEntradas
+      : setColsSalidas;
 
   function toggleCol(key: string) {
     setColsActuales((prev) =>
@@ -102,6 +114,13 @@ export function ReporteForm({
         </div>
       </div>
 
+      {tipo === "inventario" && (
+        <p className="text-xs text-ink-faint">
+          Desglosado por tarima individual (una fila por tarima física), igual que tu Excel de
+          control. El rango de fechas filtra por fecha de entrada del lote.
+        </p>
+      )}
+
       {tipo === "cargos" && (
         <p className="text-xs text-ink-faint">
           Calcula, para cada lote con existencia en el rango, los días de almacenaje (con los
@@ -110,13 +129,18 @@ export function ReporteForm({
         </p>
       )}
 
-      {(mostrarColumnasEntradas || mostrarColumnasSalidas) && (
+      {(mostrarColumnasInventario || mostrarColumnasEntradas || mostrarColumnasSalidas) && (
         <div>
           <p className="mb-2 text-[13px] font-medium text-ink-soft">
             Datos a incluir en el reporte
           </p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-3">
-            {(mostrarColumnasEntradas ? columnasEntradas : columnasSalidas).map(([key, label]) => (
+            {(mostrarColumnasInventario
+              ? columnasInventario
+              : mostrarColumnasEntradas
+                ? columnasEntradas
+                : columnasSalidas
+            ).map(([key, label]) => (
               <label key={key} className="flex items-center gap-1.5 text-sm text-ink-soft">
                 <input
                   type="checkbox"
@@ -133,7 +157,7 @@ export function ReporteForm({
       )}
 
       <p className="text-xs text-ink-faint">
-        El filtro de fechas aplica a Entradas, Salidas, Movimientos y Cargos por periodo.
+        El filtro de fechas aplica a todos los reportes excepto Ocupación de la bodega.
       </p>
 
       <div className="flex gap-3 pt-2">

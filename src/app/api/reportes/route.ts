@@ -11,8 +11,12 @@ import {
   type FilaEntrada,
   type FilaSalida,
 } from "@/lib/reportes/columnas";
-import { diasDesde, formatearFecha, formatearFechaHora } from "@/lib/utils/dates";
-import type { Cliente, Lote, Producto, Ubicacion } from "@/lib/types/database";
+import {
+  obtenerInventarioDetallado,
+  COLUMNAS_INVENTARIO,
+  DEFAULT_COLS_INVENTARIO,
+} from "@/lib/reportes/inventarioDetallado";
+import { formatearFecha, formatearFechaHora } from "@/lib/utils/dates";
 
 type TipoReporte = "inventario" | "entradas" | "salidas" | "movimientos" | "ocupacion" | "cargos";
 
@@ -43,52 +47,16 @@ export async function GET(request: NextRequest) {
   let filas: string[][] = [];
 
   if (tipo === "inventario") {
-    columnas = [
-      { encabezado: "Cliente", ancho: 2.6 },
-      { encabezado: "Producto", ancho: 2.6 },
-      { encabezado: "SKU", ancho: 1.6 },
-      { encabezado: "Lote", ancho: 2 },
-      { encabezado: "Ubic.", ancho: 1.2 },
-      { encabezado: "Piezas", ancho: 1 },
-      { encabezado: "Tarimas", ancho: 1 },
-      { encabezado: "Días", ancho: 1 },
-    ];
-    type Fila = {
-      cantidad_piezas: number;
-      cantidad_tarimas: number;
-      lotes:
-        | (Pick<Lote, "codigo_lote" | "fecha_ingreso" | "producto_id"> & {
-            productos:
-              | (Pick<Producto, "nombre" | "sku" | "cliente_id"> & {
-                  clientes: Pick<Cliente, "nombre"> | null;
-                })
-              | null;
-          })
-        | null;
-      ubicaciones: Pick<Ubicacion, "codigo"> | null;
-    };
-    const { data } = await supabase
-      .from("inventario_lote_ubicacion")
-      .select(
-        "cantidad_piezas, cantidad_tarimas, lotes(codigo_lote, fecha_ingreso, producto_id, productos(nombre, sku, cliente_id, clientes(nombre))), ubicaciones(codigo)"
-      )
-      .or("cantidad_piezas.gt.0,cantidad_tarimas.gt.0");
-    let filas_ = (data ?? []) as unknown as Fila[];
-    if (clienteId) filas_ = filas_.filter((r) => r.lotes?.productos?.cliente_id === clienteId);
-    // De mayor a menor antigüedad (días almacenados).
-    filas_ = filas_.sort(
-      (a, b) => diasDesde(b.lotes?.fecha_ingreso ?? "") - diasDesde(a.lotes?.fecha_ingreso ?? "")
+    const claves = (colsParam.length > 0 ? colsParam : DEFAULT_COLS_INVENTARIO).filter(
+      (k) => k in COLUMNAS_INVENTARIO
     );
-    filas = filas_.map((r) => [
-      r.lotes?.productos?.clientes?.nombre ?? "—",
-      r.lotes?.productos?.nombre ?? "—",
-      r.lotes?.productos?.sku ?? "—",
-      r.lotes?.codigo_lote ?? "—",
-      r.ubicaciones?.codigo ?? "—",
-      String(r.cantidad_piezas),
-      String(r.cantidad_tarimas),
-      r.lotes ? String(diasDesde(r.lotes.fecha_ingreso)) : "",
-    ]);
+    const defs = claves.map((k) => COLUMNAS_INVENTARIO[k]);
+    columnas = defs.map((d) => ({ encabezado: d.label, ancho: d.ancho }));
+
+    // Desglosado por tarima individual (una fila por tarima física), igual
+    // que el Excel de control — no una fila agregada por lote.
+    const filasInventario = await obtenerInventarioDetallado(supabase, { clienteId, desde, hasta });
+    filas = filasInventario.map((f) => defs.map((d) => d.valor(f)));
   }
 
   if (tipo === "entradas") {
@@ -268,7 +236,7 @@ export async function GET(request: NextRequest) {
 
   const subtitulo = `Generado el ${formatearFechaHora(new Date().toISOString())} · ${filas.length} registros`;
   const pdfBytes = await generarPdfTabla(TITULOS[tipo], subtitulo, columnas, filas, {
-    orientacion: tipo === "cargos" ? "horizontal" : "vertical",
+    orientacion: tipo === "cargos" || tipo === "inventario" || columnas.length > 9 ? "horizontal" : "vertical",
     filasNegrita: esCargosConTotal ? [filas.length - 1] : [],
   });
   return new NextResponse(new Uint8Array(pdfBytes), {

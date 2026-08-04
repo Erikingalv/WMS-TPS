@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { ReporteForm } from "@/components/reportes/ReporteForm";
 import { COLUMNAS_DISPONIBLES } from "@/lib/reportes/columnas";
+import { COLUMNAS_INVENTARIO } from "@/lib/reportes/inventarioDetallado";
 
 export default async function ReportesPage() {
   const supabase = await createClient();
@@ -21,6 +22,7 @@ export default async function ReportesPage() {
 
       <ReporteForm
         clientes={clientes ?? []}
+        columnasInventario={Object.entries(COLUMNAS_INVENTARIO).map(([k, v]) => [k, v.label] as [string, string])}
         columnasEntradas={Object.entries(COLUMNAS_DISPONIBLES.entradas)}
         columnasSalidas={Object.entries(COLUMNAS_DISPONIBLES.salidas)}
       />
