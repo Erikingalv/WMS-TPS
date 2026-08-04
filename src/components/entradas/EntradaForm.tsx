@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Input, Select, Textarea } from "@/components/ui/Field";
 import { SubmitButton, ButtonLink } from "@/components/ui/Button";
+import { EvidenciaFotos } from "@/components/ui/EvidenciaFotos";
 import type { Cliente, Producto, Ubicacion, Usuario } from "@/lib/types/database";
 
 export function EntradaForm({
@@ -150,17 +151,16 @@ export function EntradaForm({
 
       <Textarea label="Observaciones" name="observaciones" />
 
-      <div className="grid gap-5 sm:grid-cols-2">
-        <Input label="Fotografías" name="fotos" type="file" accept="image/*" capture="environment" multiple />
-        <Input
-          label="Documentos"
-          name="documentos"
-          type="file"
-          accept="image/*,application/pdf"
-          multiple
-          hint="Factura, carta porte, packing list, orden de compra…"
-        />
-      </div>
+      <EvidenciaFotos name="fotos" label="Fotografías de evidencia" />
+
+      <Input
+        label="Documentos"
+        name="documentos"
+        type="file"
+        accept="image/*,application/pdf"
+        multiple
+        hint="Factura, carta porte, packing list, orden de compra…"
+      />
 
       <div className="flex gap-3 pt-2">
         <SubmitButton pendingLabel="Registrando…">Registrar entrada</SubmitButton>

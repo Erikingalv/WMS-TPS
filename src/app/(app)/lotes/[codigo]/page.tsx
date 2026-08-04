@@ -118,17 +118,23 @@ export default async function LoteDetallePage({
     (ubicacionesTodas ?? []).map((u: Pick<Ubicacion, "id" | "codigo">) => [u.id, u.codigo])
   );
 
-  const primeraEntrada = (entradas ?? [])[0];
-  const { data: adjuntos } = primeraEntrada
-    ? await supabase
-        .from("archivos_adjuntos")
-        .select("*")
-        .eq("entidad_tipo", "entrada")
-        .eq("entidad_id", primeraEntrada.id)
-    : { data: [] as ArchivoAdjunto[] };
+  const entradaIds = (entradas ?? []).map((e) => e.id);
+  const salidaIds = (salidas ?? []).map((s) => s.id);
+  const [{ data: adjuntosEntradas }, { data: adjuntosSalidas }] = await Promise.all([
+    entradaIds.length > 0
+      ? supabase.from("archivos_adjuntos").select("*").eq("entidad_tipo", "entrada").in("entidad_id", entradaIds)
+      : Promise.resolve({ data: [] as ArchivoAdjunto[] }),
+    salidaIds.length > 0
+      ? supabase.from("archivos_adjuntos").select("*").eq("entidad_tipo", "salida").in("entidad_id", salidaIds)
+      : Promise.resolve({ data: [] as ArchivoAdjunto[] }),
+  ]);
 
-  const fotos = (adjuntos ?? []).filter((a) => a.tipo_documento === "foto");
-  const documentos = (adjuntos ?? []).filter((a) => a.tipo_documento !== "foto");
+  const adjuntosPorMovimiento = new Map<string, ArchivoAdjunto[]>();
+  [...(adjuntosEntradas ?? []), ...(adjuntosSalidas ?? [])].forEach((a) => {
+    const lista = adjuntosPorMovimiento.get(a.entidad_id) ?? [];
+    lista.push(a);
+    adjuntosPorMovimiento.set(a.entidad_id, lista);
+  });
 
   const movimientos: Movimiento[] = [
     ...(entradas ?? []).map((e) => ({
@@ -209,78 +215,81 @@ export default async function LoteDetallePage({
           <Card className="p-5">
             <h2 className="mb-3 text-sm font-semibold text-ink">Historial del lote</h2>
             <ol className="flex flex-col gap-3">
-              {movimientos.map((m, i) => (
-                <li key={i} className="flex items-start gap-3 text-sm">
-                  <Badge
-                    tone={m.tipo === "entrada" ? "ok" : m.tipo === "salida" ? "crit" : "info"}
-                  >
-                    {m.tipo}
-                  </Badge>
-                  <div className="flex-1">
-                    <p className="text-ink">{m.detalle}</p>
-                    <p className="text-xs text-ink-faint">{formatearFechaHora(m.fecha)}</p>
-                    {(m.tipo === "entrada" || m.tipo === "salida") && (
-                      <div className="mt-1 flex items-center gap-3">
-                        <a
-                          href={`/comprobantes/${m.tipo}/${m.id}`}
-                          className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
-                        >
-                          <FileText size={12} /> Comprobante
-                        </a>
-                        {puedeCorregir && (
+              {movimientos.map((m, i) => {
+                const adjuntos = adjuntosPorMovimiento.get(m.id) ?? [];
+                const fotos = adjuntos.filter((a) => a.tipo_documento === "foto");
+                const documentos = adjuntos.filter((a) => a.tipo_documento !== "foto");
+                return (
+                  <li key={i} className="flex items-start gap-3 text-sm">
+                    <Badge
+                      tone={m.tipo === "entrada" ? "ok" : m.tipo === "salida" ? "crit" : "info"}
+                    >
+                      {m.tipo}
+                    </Badge>
+                    <div className="flex-1">
+                      <p className="text-ink">{m.detalle}</p>
+                      <p className="text-xs text-ink-faint">{formatearFechaHora(m.fecha)}</p>
+                      {(m.tipo === "entrada" || m.tipo === "salida") && (
+                        <div className="mt-1 flex items-center gap-3">
                           <a
-                            href={`/${m.tipo === "entrada" ? "entradas" : "salidas"}/${m.id}/editar`}
-                            className="inline-flex items-center gap-1 text-xs text-ink-faint hover:text-accent hover:underline"
+                            href={`/comprobantes/${m.tipo}/${m.id}`}
+                            className="inline-flex items-center gap-1 text-xs text-accent hover:underline"
                           >
-                            <Pencil size={12} /> Editar
+                            <FileText size={12} /> Comprobante
                           </a>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </li>
-              ))}
+                          {puedeCorregir && (
+                            <a
+                              href={`/${m.tipo === "entrada" ? "entradas" : "salidas"}/${m.id}/editar`}
+                              className="inline-flex items-center gap-1 text-xs text-ink-faint hover:text-accent hover:underline"
+                            >
+                              <Pencil size={12} /> Editar
+                            </a>
+                          )}
+                        </div>
+                      )}
+                      {fotos.length > 0 && (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {fotos.map((f) => (
+                            <a
+                              key={f.id}
+                              href={urlPublica(supabase, "documentos", f.storage_path)}
+                              target="_blank"
+                            >
+                              <Image
+                                src={urlPublica(supabase, "documentos", f.storage_path)}
+                                alt="Evidencia fotográfica"
+                                width={64}
+                                height={64}
+                                className="size-16 rounded-lg border border-line object-cover"
+                              />
+                            </a>
+                          ))}
+                        </div>
+                      )}
+                      {documentos.length > 0 && (
+                        <ul className="mt-1.5 flex flex-col gap-1">
+                          {documentos.map((d) => (
+                            <li key={d.id}>
+                              <a
+                                href={urlPublica(supabase, "documentos", d.storage_path)}
+                                target="_blank"
+                                className="text-xs text-accent hover:underline"
+                              >
+                                {d.nombre_archivo ?? d.storage_path}
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </li>
+                );
+              })}
               {movimientos.length === 0 && (
                 <p className="text-sm text-ink-faint">Sin movimientos todavía.</p>
               )}
             </ol>
           </Card>
-
-          {(fotos.length > 0 || documentos.length > 0) && (
-            <Card className="p-5">
-              <h2 className="mb-3 text-sm font-semibold text-ink">Fotografías y documentos</h2>
-              {fotos.length > 0 && (
-                <div className="mb-4 flex flex-wrap gap-3">
-                  {fotos.map((f) => (
-                    <a key={f.id} href={urlPublica(supabase, "documentos", f.storage_path)} target="_blank">
-                      <Image
-                        src={urlPublica(supabase, "documentos", f.storage_path)}
-                        alt=""
-                        width={80}
-                        height={80}
-                        className="size-20 rounded-lg border border-line object-cover"
-                      />
-                    </a>
-                  ))}
-                </div>
-              )}
-              {documentos.length > 0 && (
-                <ul className="flex flex-col gap-1.5">
-                  {documentos.map((d) => (
-                    <li key={d.id}>
-                      <a
-                        href={urlPublica(supabase, "documentos", d.storage_path)}
-                        target="_blank"
-                        className="text-sm text-accent hover:underline"
-                      >
-                        {d.nombre_archivo ?? d.storage_path}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </Card>
-          )}
         </div>
 
         <div className="flex flex-col gap-6">

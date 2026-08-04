@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Input, Select, Textarea } from "@/components/ui/Field";
 import { SubmitButton, ButtonLink } from "@/components/ui/Button";
 import { SignaturePad } from "@/components/salidas/SignaturePad";
+import { EvidenciaFotos } from "@/components/ui/EvidenciaFotos";
 import { diasDesde } from "@/lib/utils/dates";
 import type { ExistenciaDisponible } from "@/lib/inventario";
 import type { Cliente, Producto, Usuario } from "@/lib/types/database";
@@ -49,7 +50,7 @@ export function SalidaForm({
   );
 
   return (
-    <form action={action} className="flex max-w-2xl flex-col gap-5">
+    <form action={action} encType="multipart/form-data" className="flex max-w-2xl flex-col gap-5">
       {error && (
         <p className="rounded-lg bg-crit-soft px-3.5 py-2.5 text-sm text-crit">{error}</p>
       )}
@@ -247,6 +248,8 @@ export function SalidaForm({
       </div>
 
       <Textarea label="Observaciones" name="observaciones" />
+
+      <EvidenciaFotos name="fotos" label="Fotografías de evidencia" />
 
       <SignaturePad name="firma_digital_dataurl" />
 

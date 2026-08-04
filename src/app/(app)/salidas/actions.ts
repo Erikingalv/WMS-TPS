@@ -4,12 +4,14 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { subirDataUrl } from "@/lib/supabase/storage";
+import { subirArchivos, subirDataUrl } from "@/lib/supabase/storage";
+import { getUsuarioActual } from "@/lib/auth/session";
 import { numeroONulo, textoONulo } from "@/lib/utils/forms";
 import { parsearTarimas } from "@/lib/utils/tarimas";
 
 export async function crearSalida(formData: FormData) {
   const supabase = await createClient();
+  const usuario = await getUsuarioActual();
 
   const lote_id = String(formData.get("lote_id") ?? "");
   const ubicacion_id = String(formData.get("ubicacion_id") ?? "");
@@ -95,6 +97,25 @@ export async function crearSalida(formData: FormData) {
     redirect(
       `/salidas/nueva?error=${encodeURIComponent(error?.message ?? "No se pudo registrar la salida")}`
     );
+  }
+
+  try {
+    const fotos = formData.getAll("fotos");
+    const subidas = await subirArchivos(supabase, "documentos", `salidas/${salida.id}`, fotos);
+    if (subidas.length > 0) {
+      await supabase.from("archivos_adjuntos").insert(
+        subidas.map((f) => ({
+          entidad_tipo: "salida" as const,
+          entidad_id: salida.id,
+          tipo_documento: "foto" as const,
+          storage_path: f.path,
+          nombre_archivo: f.nombre,
+          subido_por: usuario?.id ?? null,
+        }))
+      );
+    }
+  } catch {
+    // La salida ya quedó registrada aunque falle la subida de evidencia.
   }
 
   revalidatePath("/salidas");
