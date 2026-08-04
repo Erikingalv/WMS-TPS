@@ -324,11 +324,26 @@ export default async function LoteDetallePage({
                   {lote.piezas_inicial} pz · {lote.tarimas_inicial} tar
                 </dd>
               </div>
-              {lote.tarima_desde != null && (
+              {lote.tarima_desde != null ? (
                 <div className="flex justify-between gap-3">
                   <dt className="text-ink-faint">Identificador de tarimas</dt>
                   <dd className="tabular-nums text-ink">
                     {lote.tarima_desde}-{lote.tarima_hasta}
+                  </dd>
+                </div>
+              ) : (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-ink-faint">Identificador de tarimas</dt>
+                  <dd className="text-ink-faint">Sin rango físico (interno en reportes)</dd>
+                </div>
+              )}
+              {lote.tarimas_parciales && lote.tarimas_parciales.length > 0 && (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-ink-faint">Tarimas parciales</dt>
+                  <dd className="text-right tabular-nums text-ink">
+                    {lote.tarimas_parciales
+                      .map((t) => `${t.numero_tarima != null ? `#${t.numero_tarima}` : "s/n"}: ${t.piezas} pz`)
+                      .join(", ")}
                   </dd>
                 </div>
               )}

@@ -4,6 +4,7 @@ import { getUsuarioActual } from "@/lib/auth/session";
 import { PUEDE_CORREGIR_MOVIMIENTOS, tienePermiso } from "@/lib/auth/permisos";
 import { Input, Textarea } from "@/components/ui/Field";
 import { SubmitButton, ButtonLink } from "@/components/ui/Button";
+import { TarimasParciales } from "@/components/entradas/TarimasParciales";
 import type { FilaEntrada } from "@/lib/reportes/columnas";
 import { corregirEntradaAction } from "./actions";
 
@@ -136,6 +137,8 @@ export default async function EditarEntradaPage({
             <Input label="Número de BL" name="numero_bl" defaultValue={entrada.numero_bl ?? ""} />
           </div>
         </div>
+
+        <TarimasParciales defaultValue={entrada.tarimas_parciales ?? []} />
 
         <Textarea label="Observaciones" name="observaciones" defaultValue={entrada.observaciones ?? ""} />
 

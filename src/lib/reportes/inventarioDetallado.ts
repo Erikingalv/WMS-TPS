@@ -1,5 +1,5 @@
 import type { createClient } from "@/lib/supabase/server";
-import type { Cliente, Lote, Producto, Ubicacion, Usuario } from "@/lib/types/database";
+import type { Cliente, Lote, Producto, TarimaParcial, Ubicacion, Usuario } from "@/lib/types/database";
 import { diasDesde, formatearFecha } from "@/lib/utils/dates";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -7,7 +7,9 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 export type FilaInventarioTarima = {
   lote_id: string;
   codigo_lote: string;
-  numero_tarima: number | null; // null si el lote no tiene rango capturado (no se pudo desglosar)
+  numero_tarima: number | null; // físico, si el lote tiene rango capturado
+  identificador_interno: number | null; // interno (1..N), cuando no hay número físico
+  es_parcial: boolean;
   piezas: number;
   fecha_ingreso: string;
   hora_carga_descarga: string | null;
@@ -35,11 +37,89 @@ function rangoANumeros(desde: number | null, hasta: number | null): number[] {
   return out;
 }
 
+type Slot = {
+  numero_tarima: number | null;
+  identificador_interno: number;
+  piezas: number;
+  esParcial: boolean;
+};
+
+// Arma la lista completa de tarimas (1..tarimas_inicial) con las que llegó
+// el lote, con número físico si el rango capturado cuadra exactamente con
+// tarimas_inicial, o si no un identificador interno (siempre existe). Las
+// excepciones en `tarimasParciales` se asignan primero (por número físico
+// si lo traen, o si no a las últimas posiciones — así, para lotes sin
+// seguimiento físico, son las últimas en considerarse "salidas" más
+// adelante). El resto reparte parejo el remanente de piezas.
+function construirSlots(
+  lote: Pick<Lote, "tarima_desde" | "tarima_hasta" | "tarimas_inicial" | "piezas_inicial">,
+  tarimasParciales: TarimaParcial[]
+): { slots: Slot[]; usaFisico: boolean } {
+  const numerosFisicos = rangoANumeros(lote.tarima_desde, lote.tarima_hasta);
+  const usaFisico = numerosFisicos.length === lote.tarimas_inicial;
+
+  const slots: Slot[] = [];
+  for (let i = 0; i < lote.tarimas_inicial; i++) {
+    slots.push({
+      numero_tarima: usaFisico ? lote.tarima_desde! + i : null,
+      identificador_interno: i + 1,
+      piezas: 0,
+      esParcial: false,
+    });
+  }
+
+  const asignados = new Set<number>(); // índices en `slots`
+  const excepcionesConNumero = tarimasParciales.filter((t) => t.numero_tarima != null);
+  const excepcionesSinNumero = tarimasParciales.filter((t) => t.numero_tarima == null);
+
+  for (const exc of excepcionesConNumero) {
+    const idx = slots.findIndex((s) => s.numero_tarima === exc.numero_tarima);
+    if (idx === -1) continue; // número fuera del rango capturado: se ignora, no se inventa
+    slots[idx].piezas = exc.piezas;
+    slots[idx].esParcial = true;
+    asignados.add(idx);
+  }
+
+  // Las excepciones sin número (o todas, si el lote no tiene rango físico)
+  // se asignan a las últimas posiciones libres.
+  for (let i = slots.length - 1; i >= 0 && excepcionesSinNumero.length > 0; i--) {
+    if (asignados.has(i)) continue;
+    const exc = excepcionesSinNumero.shift()!;
+    slots[i].piezas = exc.piezas;
+    slots[i].esParcial = true;
+    asignados.add(i);
+  }
+
+  const piezasAsignadas = slots.reduce((s, slot) => s + (slot.esParcial ? slot.piezas : 0), 0);
+  const restantesIdx = slots.map((_, i) => i).filter((i) => !asignados.has(i));
+  const piezasRestantes = Math.max(0, lote.piezas_inicial - piezasAsignadas);
+  const tarimasRestantes = restantesIdx.length;
+
+  if (tarimasRestantes > 0) {
+    const base = Math.floor(piezasRestantes / tarimasRestantes);
+    const residuo = piezasRestantes - base * tarimasRestantes;
+    restantesIdx.forEach((idx, pos) => {
+      slots[idx].piezas = base + (pos < residuo ? 1 : 0);
+    });
+  }
+
+  return { slots, usaFisico };
+}
+
 // Inventario desglosado por tarima individual (como el Excel de control:
-// una fila por tarima física, no una fila por lote). Reconstruye qué
-// números de tarima siguen disponibles restando, del rango original con el
-// que llegó el lote, los que ya salieron (por número exacto si la salida
-// los capturó así, o por rango si no).
+// una fila por tarima física o, si el lote no tiene seguimiento físico
+// (ej. no se capturó rango de tarimas), por identificador interno — nunca
+// se agrupa todo en una sola fila). Reconstruye qué tarimas siguen
+// disponibles restando, del total con el que llegó el lote, las que ya
+// salieron (por número exacto si la salida las capturó así; si el lote no
+// tiene número físico, solo se sabe cuántas salieron, no cuáles, así que
+// se van descontando desde el identificador interno más bajo).
+//
+// El total de piezas mostrado siempre se ajusta para cuadrar exacto con la
+// existencia real (`inventario_lote_ubicacion`): una salida "parcial" solo
+// se documenta como nota de exactitud (ver registrar_salida) y no mueve
+// tarimas específicas del lote, así que el desglose por tarima puede
+// necesitar un ajuste menor para no perder ni inventar piezas.
 export async function obtenerInventarioDetallado(
   supabase: SupabaseServerClient,
   { clienteId, desde, hasta }: { clienteId: string | null; desde: string | null; hasta: string | null }
@@ -52,7 +132,15 @@ export async function obtenerInventarioDetallado(
     lotes:
       | (Pick<
           Lote,
-          "codigo_lote" | "fecha_ingreso" | "producto_id" | "estado" | "tarima_desde" | "tarima_hasta" | "tarimas_inicial"
+          | "codigo_lote"
+          | "fecha_ingreso"
+          | "producto_id"
+          | "estado"
+          | "tarima_desde"
+          | "tarima_hasta"
+          | "tarimas_inicial"
+          | "piezas_inicial"
+          | "tarimas_parciales"
         > & {
           productos: (Pick<Producto, "nombre" | "sku" | "cliente_id"> & { clientes: Pick<Cliente, "nombre"> | null }) | null;
         })
@@ -63,7 +151,7 @@ export async function obtenerInventarioDetallado(
   const { data: existenciasRaw } = await supabase
     .from("inventario_lote_ubicacion")
     .select(
-      "lote_id, ubicacion_id, cantidad_piezas, cantidad_tarimas, lotes(codigo_lote, fecha_ingreso, producto_id, estado, tarima_desde, tarima_hasta, tarimas_inicial, productos(nombre, sku, cliente_id, clientes(nombre))), ubicaciones(codigo)"
+      "lote_id, ubicacion_id, cantidad_piezas, cantidad_tarimas, lotes(codigo_lote, fecha_ingreso, producto_id, estado, tarima_desde, tarima_hasta, tarimas_inicial, piezas_inicial, tarimas_parciales, productos(nombre, sku, cliente_id, clientes(nombre))), ubicaciones(codigo)"
     )
     .or("cantidad_piezas.gt.0,cantidad_tarimas.gt.0");
 
@@ -101,10 +189,10 @@ export async function obtenerInventarioDetallado(
     ((entradasRaw ?? []) as unknown as EntradaOrigen[]).map((e) => [e.lote_id, e])
   );
 
-  type SalidaOrigen = { lote_id: string; tarima_desde: number | null; tarima_hasta: number | null; tarima_numeros: number[] | null };
+  type SalidaOrigen = { lote_id: string; cantidad_tarimas: number; tarima_desde: number | null; tarima_hasta: number | null; tarima_numeros: number[] | null };
   const { data: salidasRaw } = await supabase
     .from("salidas")
-    .select("lote_id, tarima_desde, tarima_hasta, tarima_numeros")
+    .select("lote_id, cantidad_tarimas, tarima_desde, tarima_hasta, tarima_numeros")
     .in("lote_id", loteIds);
   const salidasPorLote = new Map<string, SalidaOrigen[]>();
   ((salidasRaw ?? []) as unknown as SalidaOrigen[]).forEach((s) => {
@@ -141,34 +229,52 @@ export async function obtenerInventarioDetallado(
       dias,
     };
 
-    const numerosOriginales = rangoANumeros(lote.tarima_desde, lote.tarima_hasta);
-    if (numerosOriginales.length !== lote.tarimas_inicial) {
-      // Sin rango capturado, o el rango no cuadra con las tarimas reales del
-      // lote (dato incompleto/mal capturado): no se puede desglosar por
-      // tarima individual sin inventar números, se deja una sola fila
-      // agregada con la existencia actual completa para no perder piezas.
-      filas.push({ ...base, numero_tarima: null, piezas: e.cantidad_piezas });
-      continue;
+    const { slots, usaFisico } = construirSlots(lote, (lote.tarimas_parciales ?? []) as TarimaParcial[]);
+
+    let disponibles: Slot[];
+    if (usaFisico) {
+      const salidos = new Set<number>();
+      for (const s of salidasPorLote.get(e.lote_id) ?? []) {
+        const numeros = s.tarima_numeros && s.tarima_numeros.length > 0 ? s.tarima_numeros : rangoANumeros(s.tarima_desde, s.tarima_hasta);
+        numeros.forEach((n) => salidos.add(n));
+      }
+      disponibles = slots.filter((s) => s.numero_tarima == null || !salidos.has(s.numero_tarima));
+    } else {
+      const totalSalido = (salidasPorLote.get(e.lote_id) ?? []).reduce((s, sal) => s + sal.cantidad_tarimas, 0);
+      disponibles = slots.slice(Math.min(totalSalido, slots.length));
     }
 
-    const salidos = new Set<number>();
-    for (const s of salidasPorLote.get(e.lote_id) ?? []) {
-      const numeros = s.tarima_numeros && s.tarima_numeros.length > 0 ? s.tarima_numeros : rangoANumeros(s.tarima_desde, s.tarima_hasta);
-      numeros.forEach((n) => salidos.add(n));
+    if (disponibles.length === 0) continue;
+
+    // Ajuste para que el desglose siempre sume exacto con la existencia
+    // real (una salida parcial documentada como nota no mueve piezas de
+    // una tarima específica del desglose).
+    const sumaDisponibles = disponibles.reduce((s, d) => s + d.piezas, 0);
+    const diferencia = e.cantidad_piezas - sumaDisponibles;
+    if (diferencia !== 0) {
+      const ultimo = disponibles[disponibles.length - 1];
+      disponibles = [
+        ...disponibles.slice(0, -1),
+        { ...ultimo, piezas: Math.max(0, ultimo.piezas + diferencia) },
+      ];
     }
-    const disponibles = numerosOriginales.filter((n) => !salidos.has(n));
 
-    if (disponibles.length === 0) continue; // no debería pasar (ya viene filtrado por existencia > 0)
-
-    const piezasPorTarima = e.cantidad_tarimas > 0 ? Math.round(e.cantidad_piezas / e.cantidad_tarimas) : 0;
-    for (const numero of disponibles) {
-      filas.push({ ...base, numero_tarima: numero, piezas: piezasPorTarima });
+    for (const slot of disponibles) {
+      filas.push({
+        ...base,
+        numero_tarima: slot.numero_tarima,
+        identificador_interno: slot.numero_tarima == null ? slot.identificador_interno : null,
+        es_parcial: slot.esParcial,
+        piezas: slot.piezas,
+      });
     }
   }
 
   // De mayor a menor antigüedad, y dentro del mismo lote por número de tarima.
   return filas.sort(
-    (a, b) => diasDesde(b.fecha_ingreso) - diasDesde(a.fecha_ingreso) || (a.numero_tarima ?? 0) - (b.numero_tarima ?? 0)
+    (a, b) =>
+      diasDesde(b.fecha_ingreso) - diasDesde(a.fecha_ingreso) ||
+      (a.numero_tarima ?? a.identificador_interno ?? 0) - (b.numero_tarima ?? b.identificador_interno ?? 0)
   );
 }
 
@@ -188,7 +294,12 @@ export const COLUMNAS_INVENTARIO: Record<
   sku: { label: "SKU", ancho: 1.1, valor: (f) => f.sku },
   lote_2: { label: "Lote SAP", ancho: 1.1, valor: (f) => f.lote_2 ?? "—" },
   lote_1: { label: "Lote", ancho: 1.1, valor: (f) => f.lote_1 ?? "—" },
-  numero_tarima: { label: "Número de tarima", ancho: 1, valor: (f) => (f.numero_tarima != null ? String(f.numero_tarima) : "—") },
+  numero_tarima: {
+    label: "Número de tarima",
+    ancho: 1,
+    valor: (f) => (f.numero_tarima != null ? String(f.numero_tarima) : f.identificador_interno != null ? `Interno #${f.identificador_interno}` : "—"),
+  },
+  parcial: { label: "Parcial", ancho: 0.8, valor: (f) => (f.es_parcial ? "Sí" : "No") },
   contenedor: { label: "Contenedor", ancho: 1.2, valor: (f) => f.numero_contenedor ?? "—" },
   bl: { label: "BL/Referencia", ancho: 1.2, valor: (f) => f.numero_bl ?? "—" },
   ubicacion: { label: "Ubicación", ancho: 1, valor: (f) => f.ubicacion },

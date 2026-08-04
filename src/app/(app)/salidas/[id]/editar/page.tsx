@@ -90,6 +90,24 @@ export default async function EditarSalidaPage({
         />
 
         <div className="grid gap-5 sm:grid-cols-2">
+          <Input
+            label="Piezas de tarima parcial"
+            name="piezas_tarima_parcial"
+            type="number"
+            min="1"
+            defaultValue={salida.piezas_tarima_parcial ?? ""}
+            hint="Solo si una de las tarimas que salieron no venía completa"
+          />
+          <Input
+            label="Número de esa tarima (si aplica)"
+            name="numero_tarima_parcial"
+            type="number"
+            min="1"
+            defaultValue={salida.numero_tarima_parcial ?? ""}
+          />
+        </div>
+
+        <div className="grid gap-5 sm:grid-cols-2">
           <Input label="Destino" name="destino" defaultValue={salida.destino ?? ""} />
           <Input label="Transportista" name="transportista" defaultValue={salida.transportista ?? ""} />
         </div>

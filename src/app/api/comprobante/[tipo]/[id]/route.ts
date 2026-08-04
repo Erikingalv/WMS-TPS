@@ -58,6 +58,16 @@ export async function GET(
       { etiqueta: "Contenedor", valor: data.numero_contenedor ?? "—" },
       { etiqueta: "BL / Referencia", valor: data.numero_bl ?? "—" },
       { etiqueta: "Peso (kg)", valor: data.peso_kg != null ? String(data.peso_kg) : "—" },
+      ...(data.tarimas_parciales && data.tarimas_parciales.length > 0
+        ? [
+            {
+              etiqueta: "Tarimas parciales",
+              valor: data.tarimas_parciales
+                .map((t) => `${t.numero_tarima != null ? `#${t.numero_tarima}` : "s/n"}: ${t.piezas} pz`)
+                .join(", "),
+            },
+          ]
+        : []),
     ];
 
     const pdf = await generarComprobante({
@@ -119,6 +129,14 @@ export async function GET(
     { etiqueta: "Lote 2 (SAP)", valor: data.lote_2 ?? "—" },
     { etiqueta: "Contenedor", valor: data.numero_contenedor ?? "—" },
     { etiqueta: "BL / Referencia", valor: data.numero_bl ?? "—" },
+    ...(data.piezas_tarima_parcial != null
+      ? [
+          {
+            etiqueta: "Tarima parcial",
+            valor: `${data.numero_tarima_parcial != null ? `tarima #${data.numero_tarima_parcial}: ` : ""}${data.piezas_tarima_parcial} pz`,
+          },
+        ]
+      : []),
   ];
 
   const pdf = await generarComprobante({

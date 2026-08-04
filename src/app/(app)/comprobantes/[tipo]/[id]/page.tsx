@@ -129,7 +129,23 @@ export default async function ComprobanteDetallePage({
                 <Campo etiqueta="Transportista" valor={data.transportista ?? "—"} />
                 <Campo etiqueta="Placas / unidad" valor={data.placas ?? "—"} />
                 <Campo etiqueta="Operador" valor={data.operador ?? "—"} />
+                {data.piezas_tarima_parcial != null && (
+                  <Campo
+                    etiqueta="Tarima parcial"
+                    valor={`${data.numero_tarima_parcial != null ? `tarima #${data.numero_tarima_parcial}: ` : ""}${data.piezas_tarima_parcial} pz`}
+                  />
+                )}
               </>
+            )}
+            {tipo === "entrada" && "tarimas_parciales" in data && data.tarimas_parciales.length > 0 && (
+              <div className="col-span-2">
+                <Campo
+                  etiqueta="Tarimas parciales"
+                  valor={data.tarimas_parciales
+                    .map((t) => `${t.numero_tarima != null ? `#${t.numero_tarima}` : "s/n"}: ${t.piezas} pz`)
+                    .join(", ")}
+                />
+              </div>
             )}
             {data.observaciones && (
               <div className="col-span-2">

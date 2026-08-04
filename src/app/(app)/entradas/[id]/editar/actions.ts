@@ -22,6 +22,7 @@ export async function corregirEntradaAction(id: string, formData: FormData) {
   const presentacion = textoONulo(formData.get("presentacion"));
   const tarima_desde = numeroONulo(formData.get("tarima_desde"));
   const tarima_hasta = numeroONulo(formData.get("tarima_hasta"));
+  const tarimas_parciales = JSON.parse(String(formData.get("tarimas_parciales_json") ?? "[]"));
 
   const { data: entrada, error } = await supabase.rpc("corregir_entrada", {
     p_entrada_id: id,
@@ -39,6 +40,7 @@ export async function corregirEntradaAction(id: string, formData: FormData) {
     p_presentacion: presentacion,
     p_tarima_desde: tarima_desde,
     p_tarima_hasta: tarima_hasta,
+    p_tarimas_parciales: tarimas_parciales,
   });
 
   if (error || !entrada) {

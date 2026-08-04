@@ -71,6 +71,15 @@ export type Ubicacion = {
 
 export type EstadoLote = "activo" | "agotado";
 
+// Excepciones al reparto parejo de piezas por tarima dentro de una entrada
+// (tarimas que llegaron con menos material). `numero_tarima` solo aplica
+// cuando la entrada tiene rango físico capturado; si no, la excepción
+// simplemente consume uno de los identificadores internos.
+export type TarimaParcial = {
+  numero_tarima: number | null;
+  piezas: number;
+};
+
 export type Lote = {
   id: string;
   producto_id: string;
@@ -85,6 +94,7 @@ export type Lote = {
   updated_at: string;
   tarima_desde: number | null;
   tarima_hasta: number | null;
+  tarimas_parciales: TarimaParcial[];
 };
 
 export type InventarioLoteUbicacion = {
@@ -121,6 +131,7 @@ export type Entrada = {
   presentacion: string | null;
   tarima_desde: number | null;
   tarima_hasta: number | null;
+  tarimas_parciales: TarimaParcial[];
   firma_digital_url: string | null;
 };
 
@@ -154,6 +165,8 @@ export type Salida = {
   tarima_desde: number | null;
   tarima_hasta: number | null;
   tarima_numeros: number[] | null;
+  piezas_tarima_parcial: number | null;
+  numero_tarima_parcial: number | null;
 };
 
 export type MovimientoInterno = {

@@ -186,6 +186,21 @@ export function SalidaForm({
         />
         <div className="grid gap-5 sm:grid-cols-2">
           <Input
+            label="Piezas de tarima parcial"
+            name="piezas_tarima_parcial"
+            type="number"
+            min="1"
+            hint="Solo si una de las tarimas que salen no viene completa"
+          />
+          <Input
+            label="Número de esa tarima (si aplica)"
+            name="numero_tarima_parcial"
+            type="number"
+            min="1"
+          />
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Input
             key={`cajas_por_pallet-${combo}`}
             label="Cajas por pallet"
             name="cajas_por_pallet"

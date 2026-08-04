@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Input, Select, Textarea } from "@/components/ui/Field";
 import { SubmitButton, ButtonLink } from "@/components/ui/Button";
 import { EvidenciaFotos } from "@/components/ui/EvidenciaFotos";
+import { TarimasParciales } from "@/components/entradas/TarimasParciales";
 import type { Cliente, Producto, Ubicacion, Usuario } from "@/lib/types/database";
 
 export function EntradaForm({
@@ -148,6 +149,8 @@ export function EntradaForm({
           <Input label="Número de BL" name="numero_bl" />
         </div>
       </div>
+
+      <TarimasParciales />
 
       <Textarea label="Observaciones" name="observaciones" />
 

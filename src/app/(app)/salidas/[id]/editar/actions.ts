@@ -25,6 +25,8 @@ export async function corregirSalidaAction(id: string, formData: FormData) {
   const numero_bl = textoONulo(formData.get("numero_bl"));
   const presentacion = textoONulo(formData.get("presentacion"));
   const tarimaNumerosTexto = String(formData.get("tarima_numeros_texto") ?? "").trim();
+  const piezas_tarima_parcial = numeroONulo(formData.get("piezas_tarima_parcial"));
+  const numero_tarima_parcial = numeroONulo(formData.get("numero_tarima_parcial"));
 
   let tarima_numeros: number[] | null = null;
   if (tarimaNumerosTexto) {
@@ -56,6 +58,8 @@ export async function corregirSalidaAction(id: string, formData: FormData) {
     p_numero_bl: numero_bl,
     p_presentacion: presentacion,
     p_tarima_numeros: tarima_numeros,
+    p_piezas_tarima_parcial: piezas_tarima_parcial,
+    p_numero_tarima_parcial: numero_tarima_parcial,
   });
 
   if (error || !salida) {
