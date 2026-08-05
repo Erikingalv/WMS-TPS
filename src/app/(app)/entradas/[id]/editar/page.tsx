@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { PUEDE_CORREGIR_MOVIMIENTOS, tienePermiso } from "@/lib/auth/permisos";
+import { puedeCorregirMovimientos } from "@/lib/auth/permisos";
 import { Input, Textarea } from "@/components/ui/Field";
 import { SubmitButton, ButtonLink } from "@/components/ui/Button";
 import { TarimasParciales } from "@/components/entradas/TarimasParciales";
@@ -18,7 +18,7 @@ export default async function EditarEntradaPage({
   const { id } = await params;
   const { error } = await searchParams;
   const usuario = await getUsuarioActual();
-  if (!usuario || !tienePermiso(usuario.rol, PUEDE_CORREGIR_MOVIMIENTOS)) {
+  if (!usuario || !puedeCorregirMovimientos(usuario)) {
     redirect("/entradas");
   }
 

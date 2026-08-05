@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { FileDown, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { PUEDE_CORREGIR_MOVIMIENTOS, tienePermiso } from "@/lib/auth/permisos";
+import { puedeCorregirMovimientos } from "@/lib/auth/permisos";
 import { formatearFecha } from "@/lib/utils/dates";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -51,7 +51,7 @@ export default async function ComprobanteDetallePage({
 
   const firmarConDatos = firmarComprobante.bind(null, tipo, id);
   const usuario = await getUsuarioActual();
-  const puedeCorregir = usuario ? tienePermiso(usuario.rol, PUEDE_CORREGIR_MOVIMIENTOS) : false;
+  const puedeCorregir = usuario ? puedeCorregirMovimientos(usuario) : false;
 
   return (
     <div className="flex flex-col gap-6">

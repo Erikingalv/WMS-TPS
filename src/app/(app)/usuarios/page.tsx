@@ -6,6 +6,7 @@ import { ButtonLink } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { RolSelector } from "@/components/usuarios/RolSelector";
 import { EstadoUsuarioToggle } from "@/components/usuarios/EstadoUsuarioToggle";
+import { CorregirMovimientosToggle } from "@/components/usuarios/CorregirMovimientosToggle";
 
 export default async function UsuariosPage() {
   const usuarioActual = await requireRol(PUEDE_GESTIONAR_USUARIOS);
@@ -37,6 +38,7 @@ export default async function UsuariosPage() {
               <th className="px-4 py-3">Nombre</th>
               <th className="px-4 py-3">Correo</th>
               <th className="px-4 py-3">Rol</th>
+              <th className="px-4 py-3">Puede corregir movimientos</th>
               <th className="px-4 py-3">Estado</th>
             </tr>
           </thead>
@@ -61,6 +63,16 @@ export default async function UsuariosPage() {
                       rolActual={usuario.rol}
                       disabled={esUnoMismo}
                     />
+                  </td>
+                  <td className="px-4 py-3">
+                    {usuario.rol === "administrador" ? (
+                      <span className="text-xs text-ink-faint">Incluido (admin)</span>
+                    ) : (
+                      <CorregirMovimientosToggle
+                        id={usuario.id}
+                        valor={usuario.puede_corregir_movimientos}
+                      />
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     {esUnoMismo ? (

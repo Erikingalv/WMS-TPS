@@ -49,3 +49,15 @@ export async function cambiarEstadoUsuario(id: string, activo: boolean) {
 
   if (!error) revalidatePath("/usuarios");
 }
+
+export async function cambiarPuedeCorregirMovimientos(id: string, valor: boolean) {
+  await requireRol(PUEDE_GESTIONAR_USUARIOS);
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("usuarios")
+    .update({ puede_corregir_movimientos: valor })
+    .eq("id", id);
+
+  if (!error) revalidatePath("/usuarios");
+}

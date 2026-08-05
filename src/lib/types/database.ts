@@ -23,6 +23,7 @@ export type Usuario = {
   activo: boolean;
   created_at: string;
   updated_at: string;
+  puede_corregir_movimientos: boolean;
 };
 
 export type Cliente = {

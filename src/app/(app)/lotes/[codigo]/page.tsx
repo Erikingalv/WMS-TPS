@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { urlPublica } from "@/lib/supabase/storage";
 import { generarQrDataUrl } from "@/lib/qr";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { PUEDE_CORREGIR_MOVIMIENTOS, tienePermiso } from "@/lib/auth/permisos";
+import { puedeCorregirMovimientos } from "@/lib/auth/permisos";
 import { diasDesde, formatearFecha, formatearFechaHora } from "@/lib/utils/dates";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
@@ -75,7 +75,7 @@ export default async function LoteDetallePage({
   const { comprobante, corregido } = await searchParams;
   const supabase = await createClient();
   const usuario = await getUsuarioActual();
-  const puedeCorregir = usuario ? tienePermiso(usuario.rol, PUEDE_CORREGIR_MOVIMIENTOS) : false;
+  const puedeCorregir = usuario ? puedeCorregirMovimientos(usuario) : false;
 
   const { data: lote } = await supabase
     .from("lotes")

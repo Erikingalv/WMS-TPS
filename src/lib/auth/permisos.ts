@@ -1,4 +1,4 @@
-import type { RolUsuario } from "@/lib/types/database";
+import type { RolUsuario, Usuario } from "@/lib/types/database";
 
 // Refleja las políticas RLS de supabase/migrations/0002_rls_fase1.sql — la
 // base de datos es quien realmente aplica el permiso; esto solo evita
@@ -28,7 +28,14 @@ export const PUEDE_ATENDER_ALERTAS: RolUsuario[] = ["administrador", "supervisor
 
 export const PUEDE_CONFIGURAR_ALERTAS: RolUsuario[] = ["administrador"];
 
-export const PUEDE_CORREGIR_MOVIMIENTOS: RolUsuario[] = ["administrador"];
+// Permiso individual, no de rol: un administrador siempre puede corregir;
+// cualquier otro rol solo si se le marca explícitamente en su cuenta
+// (ver /usuarios). Refleja la función SQL puede_corregir_movimientos().
+export function puedeCorregirMovimientos(
+  usuario: Pick<Usuario, "rol" | "puede_corregir_movimientos">
+): boolean {
+  return usuario.rol === "administrador" || usuario.puede_corregir_movimientos;
+}
 
 export const PUEDE_VER_TARIFAS: RolUsuario[] = ["administrador", "supervisor"];
 
