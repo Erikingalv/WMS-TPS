@@ -2,26 +2,30 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { FileDown, Pencil } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { urlPublica } from "@/lib/supabase/storage";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { puedeCorregirMovimientos } from "@/lib/auth/permisos";
+import { puedeCorregirMovimientos, PUEDE_SUBIR_EVIDENCIA, tienePermiso } from "@/lib/auth/permisos";
 import { formatearFecha } from "@/lib/utils/dates";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { SubmitButton, ButtonLink } from "@/components/ui/Button";
 import { SignaturePad } from "@/components/salidas/SignaturePad";
+import { EvidenciaFotos } from "@/components/ui/EvidenciaFotos";
+import { CompartirComprobante } from "@/components/comprobantes/CompartirComprobante";
+import type { ArchivoAdjunto } from "@/lib/types/database";
 import type { FilaEntrada, FilaSalida } from "@/lib/reportes/columnas";
 import { formatearTarimas } from "@/lib/utils/tarimas";
-import { firmarComprobante } from "./actions";
+import { firmarComprobante, agregarEvidenciaFotos } from "./actions";
 
 export default async function ComprobanteDetallePage({
   params,
   searchParams,
 }: {
   params: Promise<{ tipo: string; id: string }>;
-  searchParams: Promise<{ error?: string; firmado?: string }>;
+  searchParams: Promise<{ error?: string; firmado?: string; fotos?: string }>;
 }) {
   const { tipo, id } = await params;
-  const { error, firmado } = await searchParams;
+  const { error, firmado, fotos: fotosGuardadas } = await searchParams;
 
   if (tipo !== "entrada" && tipo !== "salida") notFound();
 
@@ -49,9 +53,19 @@ export default async function ComprobanteDetallePage({
     lotes: { codigo_lote: string } | null;
   };
 
+  const { data: adjuntos } = await supabase
+    .from("archivos_adjuntos")
+    .select("*")
+    .eq("entidad_tipo", tipo)
+    .eq("entidad_id", id)
+    .eq("tipo_documento", "foto");
+  const fotos = (adjuntos ?? []) as ArchivoAdjunto[];
+
   const firmarConDatos = firmarComprobante.bind(null, tipo, id);
+  const agregarFotosConDatos = agregarEvidenciaFotos.bind(null, tipo, id);
   const usuario = await getUsuarioActual();
   const puedeCorregir = usuario ? puedeCorregirMovimientos(usuario) : false;
+  const puedeSubirEvidencia = usuario ? tienePermiso(usuario.rol, PUEDE_SUBIR_EVIDENCIA) : false;
 
   return (
     <div className="flex flex-col gap-6">
@@ -74,12 +88,22 @@ export default async function ComprobanteDetallePage({
           <ButtonLink href={`/api/comprobante/${tipo}/${id}`} variant="secondary">
             <FileDown size={16} /> Descargar PDF
           </ButtonLink>
+          <CompartirComprobante
+            tipo={tipo}
+            id={id}
+            archivoNombre={`comprobante-${tipo}-${data.lotes?.codigo_lote ?? id.slice(0, 8)}.pdf`}
+          />
         </div>
       </div>
 
       {firmado && (
         <p className="rounded-lg bg-ok-soft px-3.5 py-2.5 text-sm text-ok">
           Firma guardada correctamente.
+        </p>
+      )}
+      {fotosGuardadas && (
+        <p className="rounded-lg bg-ok-soft px-3.5 py-2.5 text-sm text-ok">
+          Fotos guardadas correctamente.
         </p>
       )}
       {error && <p className="rounded-lg bg-crit-soft px-3.5 py-2.5 text-sm text-crit">{error}</p>}
@@ -178,6 +202,38 @@ export default async function ComprobanteDetallePage({
                 Guardar firma
               </SubmitButton>
             </form>
+          )}
+        </Card>
+
+        <Card className="p-5 lg:col-span-3">
+          <h2 className="mb-3 text-sm font-semibold text-ink">Fotografías de evidencia</h2>
+          {fotos.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-3">
+              {fotos.map((f) => (
+                <a key={f.id} href={urlPublica(supabase, "documentos", f.storage_path)} target="_blank">
+                  <Image
+                    src={urlPublica(supabase, "documentos", f.storage_path)}
+                    alt="Evidencia fotográfica"
+                    width={80}
+                    height={80}
+                    className="size-20 rounded-lg border border-line object-cover"
+                  />
+                </a>
+              ))}
+            </div>
+          )}
+          {fotos.length === 0 && (
+            <p className="mb-4 text-sm text-ink-faint">Todavía no hay fotos de este movimiento.</p>
+          )}
+          {puedeSubirEvidencia ? (
+            <form action={agregarFotosConDatos} encType="multipart/form-data" className="flex flex-col gap-3">
+              <EvidenciaFotos name="fotos" label="Agregar más fotos" />
+              <SubmitButton pendingLabel="Guardando…" className="w-fit">
+                Guardar fotos
+              </SubmitButton>
+            </form>
+          ) : (
+            !usuario && <p className="text-xs text-ink-faint">Inicia sesión para poder agregar fotos.</p>
           )}
         </Card>
       </div>

@@ -28,6 +28,15 @@ export const PUEDE_ATENDER_ALERTAS: RolUsuario[] = ["administrador", "supervisor
 
 export const PUEDE_CONFIGURAR_ALERTAS: RolUsuario[] = ["administrador"];
 
+// Mismos roles que pueden registrar entradas/salidas (ver RLS de
+// archivos_adjuntos): también pueden agregar fotos de evidencia después,
+// no solo al capturar el movimiento.
+export const PUEDE_SUBIR_EVIDENCIA: RolUsuario[] = [
+  "administrador",
+  "supervisor",
+  "capturista",
+];
+
 // Permiso individual, no de rol: un administrador siempre puede corregir;
 // cualquier otro rol solo si se le marca explícitamente en su cuenta
 // (ver /usuarios). Refleja la función SQL puede_corregir_movimientos().
