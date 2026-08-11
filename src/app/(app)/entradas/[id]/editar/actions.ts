@@ -23,6 +23,8 @@ export async function corregirEntradaAction(id: string, formData: FormData) {
   const tarima_desde = numeroONulo(formData.get("tarima_desde"));
   const tarima_hasta = numeroONulo(formData.get("tarima_hasta"));
   const tarimas_parciales = JSON.parse(String(formData.get("tarimas_parciales_json") ?? "[]"));
+  const fecha_movimiento = String(formData.get("fecha") ?? "") || null;
+  const hora_carga_descarga = String(formData.get("hora_carga_descarga") ?? "") || null;
 
   const { data: entrada, error } = await supabase.rpc("corregir_entrada", {
     p_entrada_id: id,
@@ -41,6 +43,8 @@ export async function corregirEntradaAction(id: string, formData: FormData) {
     p_tarima_desde: tarima_desde,
     p_tarima_hasta: tarima_hasta,
     p_tarimas_parciales: tarimas_parciales,
+    p_fecha_movimiento: fecha_movimiento,
+    p_hora_carga_descarga: hora_carga_descarga,
   });
 
   if (error || !entrada) {

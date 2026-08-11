@@ -27,6 +27,8 @@ export async function corregirSalidaAction(id: string, formData: FormData) {
   const tarimaNumerosTexto = String(formData.get("tarima_numeros_texto") ?? "").trim();
   const piezas_tarima_parcial = numeroONulo(formData.get("piezas_tarima_parcial"));
   const numero_tarima_parcial = numeroONulo(formData.get("numero_tarima_parcial"));
+  const fecha_movimiento = String(formData.get("fecha") ?? "") || null;
+  const hora_carga_descarga = String(formData.get("hora_carga_descarga") ?? "") || null;
 
   let tarima_numeros: number[] | null = null;
   if (tarimaNumerosTexto) {
@@ -60,6 +62,8 @@ export async function corregirSalidaAction(id: string, formData: FormData) {
     p_tarima_numeros: tarima_numeros,
     p_piezas_tarima_parcial: piezas_tarima_parcial,
     p_numero_tarima_parcial: numero_tarima_parcial,
+    p_fecha_movimiento: fecha_movimiento,
+    p_hora_carga_descarga: hora_carga_descarga,
   });
 
   if (error || !salida) {

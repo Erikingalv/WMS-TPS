@@ -44,8 +44,8 @@ export default async function EditarEntradaPage({
           {entrada.ubicaciones?.codigo ?? "—"}
         </p>
         <p className="mt-1 text-xs text-ink-faint">
-          Solo administrador. Si cambias piezas o tarimas, el inventario, los reportes y los
-          cargos se ajustan automáticamente.
+          Requiere permiso para corregir movimientos. Si cambias piezas o tarimas, el inventario,
+          los reportes y los cargos se ajustan automáticamente.
         </p>
       </div>
 
@@ -53,6 +53,23 @@ export default async function EditarEntradaPage({
         {error && (
           <p className="rounded-lg bg-crit-soft px-3.5 py-2.5 text-sm text-crit">{error}</p>
         )}
+
+        <div className="grid gap-5 sm:grid-cols-2">
+          <Input
+            label="Fecha de ingreso"
+            name="fecha"
+            type="date"
+            required
+            defaultValue={entrada.fecha.slice(0, 10)}
+          />
+          <Input
+            label="Hora de carga o descarga"
+            name="hora_carga_descarga"
+            type="time"
+            required
+            defaultValue={entrada.hora_carga_descarga.slice(0, 5)}
+          />
+        </div>
 
         <div className="grid gap-5 sm:grid-cols-3">
           <Input
