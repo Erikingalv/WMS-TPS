@@ -89,8 +89,7 @@ export default async function ComprobanteDetallePage({
             <FileDown size={16} /> Descargar PDF
           </ButtonLink>
           <CompartirComprobante
-            tipo={tipo}
-            id={id}
+            url={`/api/comprobante/${tipo}/${id}`}
             archivoNombre={`comprobante-${tipo}-${data.lotes?.codigo_lote ?? id.slice(0, 8)}.pdf`}
           />
         </div>

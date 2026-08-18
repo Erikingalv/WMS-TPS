@@ -1,6 +1,8 @@
+import { FileDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
+import { CompartirComprobante } from "@/components/comprobantes/CompartirComprobante";
 import type { Cliente, Producto } from "@/lib/types/database";
 
 type FilaResumen = {
@@ -57,6 +59,29 @@ export default async function RegistroMultipleSalidasPage({
         </div>
       )}
 
+      {salidas.length > 1 && (
+        <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <div>
+            <p className="text-sm font-semibold text-ink">Comprobante consolidado</p>
+            <p className="text-xs text-ink-faint">
+              Un solo PDF con los {salidas.length} productos de este viaje, en vez de uno por cada uno.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <ButtonLink
+              href={`/api/comprobante/consolidado/salida?ids=${salidas.map((s) => s.id).join(",")}`}
+              variant="secondary"
+            >
+              <FileDown size={16} /> Descargar PDF
+            </ButtonLink>
+            <CompartirComprobante
+              url={`/api/comprobante/consolidado/salida?ids=${salidas.map((s) => s.id).join(",")}`}
+              archivoNombre="comprobante-salida-consolidado.pdf"
+            />
+          </div>
+        </Card>
+      )}
+
       {salidas.length > 0 && (
         <div className="flex flex-col gap-3">
           {salidas.map((s) => (
@@ -72,7 +97,7 @@ export default async function RegistroMultipleSalidasPage({
                 </p>
               </div>
               <ButtonLink href={`/comprobantes/salida/${s.id}`} variant="secondary" size="sm">
-                Ver comprobante
+                Ver comprobante individual
               </ButtonLink>
             </Card>
           ))}

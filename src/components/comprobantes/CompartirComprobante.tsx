@@ -12,13 +12,13 @@ import { Button } from "@/components/ui/Button";
 // `navigator.share` (la mayoría de escritorio) el botón ni se muestra —
 // ahí "Descargar PDF" ya funciona bien tal cual.
 export function CompartirComprobante({
-  tipo,
-  id,
+  url,
   archivoNombre,
+  etiqueta = "Compartir / Imprimir",
 }: {
-  tipo: "entrada" | "salida";
-  id: string;
+  url: string;
   archivoNombre: string;
+  etiqueta?: string;
 }) {
   const [cargando, setCargando] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -32,9 +32,9 @@ export function CompartirComprobante({
     setCargando(true);
     setErrorMsg(null);
     try {
-      const resp = await fetch(`/api/comprobante/${tipo}/${id}`);
+      const resp = await fetch(url);
       if (!resp.ok) {
-        setErrorMsg("No se pudo generar el PDF de este comprobante. Avísale a Erik.");
+        setErrorMsg("No se pudo generar el PDF. Avísale a Erik.");
         return;
       }
       const blob = await resp.blob();
@@ -43,11 +43,11 @@ export function CompartirComprobante({
       if (navigator.canShare?.({ files: [file] })) {
         await navigator.share({ files: [file], title: "Comprobante" });
       } else {
-        window.open(`/api/comprobante/${tipo}/${id}`, "_blank");
+        window.open(url, "_blank");
       }
     } catch (err) {
       if ((err as Error)?.name !== "AbortError") {
-        window.open(`/api/comprobante/${tipo}/${id}`, "_blank");
+        window.open(url, "_blank");
       }
     } finally {
       setCargando(false);
@@ -57,7 +57,7 @@ export function CompartirComprobante({
   return (
     <div className="flex flex-col gap-1.5">
       <Button type="button" variant="secondary" onClick={compartir} disabled={cargando}>
-        <Share2 size={16} /> {cargando ? "Preparando…" : "Compartir / Imprimir"}
+        <Share2 size={16} /> {cargando ? "Preparando…" : etiqueta}
       </Button>
       {errorMsg && <p className="text-xs text-crit">{errorMsg}</p>}
     </div>
