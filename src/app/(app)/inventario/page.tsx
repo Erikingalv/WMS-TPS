@@ -16,6 +16,7 @@ type FilaInventario = {
               clientes: Pick<Cliente, "nombre"> | null;
             })
           | null;
+        entradas: { numero_bl: string | null }[] | null;
       })
     | null;
   ubicaciones: Pick<Ubicacion, "codigo"> | null;
@@ -27,10 +28,21 @@ function tonoPorDias(dias: number) {
   return "ok" as const;
 }
 
+// Un lote siempre viene de una sola entrada — el BL vive ahí, no en el lote.
+function blDe(f: FilaInventario): string | null {
+  return f.lotes?.entradas?.[0]?.numero_bl ?? null;
+}
+
 export default async function InventarioPage({
   searchParams,
 }: {
-  searchParams: Promise<{ cliente_id?: string; producto_id?: string; ubicacion_id?: string; lote?: string }>;
+  searchParams: Promise<{
+    cliente_id?: string;
+    producto_id?: string;
+    ubicacion_id?: string;
+    lote?: string;
+    bl?: string;
+  }>;
 }) {
   const filtros = await searchParams;
   const supabase = await createClient();
@@ -40,7 +52,7 @@ export default async function InventarioPage({
       supabase
         .from("inventario_lote_ubicacion")
         .select(
-          "id, cantidad_piezas, cantidad_tarimas, lotes(codigo_lote, fecha_ingreso, estado, producto_id, productos(nombre, sku, cliente_id, clientes(nombre))), ubicaciones(codigo)"
+          "id, cantidad_piezas, cantidad_tarimas, lotes(codigo_lote, fecha_ingreso, estado, producto_id, productos(nombre, sku, cliente_id, clientes(nombre)), entradas(numero_bl)), ubicaciones(codigo)"
         )
         .or("cantidad_piezas.gt.0,cantidad_tarimas.gt.0"),
       supabase.from("clientes").select("*").eq("activo", true).order("nombre"),
@@ -64,6 +76,10 @@ export default async function InventarioPage({
     const q = filtros.lote.toLowerCase();
     filas = filas.filter((f) => f.lotes?.codigo_lote.toLowerCase().includes(q));
   }
+  if (filtros.bl) {
+    const q = filtros.bl.toLowerCase();
+    filas = filas.filter((f) => (blDe(f) ?? "").toLowerCase().includes(q));
+  }
 
   return (
     <div className="flex flex-col gap-6">
@@ -72,7 +88,7 @@ export default async function InventarioPage({
         <p className="mt-1 text-sm text-ink-soft">{filas.length} existencias activas</p>
       </div>
 
-      <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 lg:items-end">
+      <form className="grid gap-4 sm:grid-cols-2 lg:grid-cols-6 lg:items-end">
         <Select label="Cliente" name="cliente_id" defaultValue={filtros.cliente_id ?? ""}>
           <option value="">Todos</option>
           {(clientes ?? []).map((c) => (
@@ -109,6 +125,18 @@ export default async function InventarioPage({
             className="h-11 w-full rounded-lg border border-line bg-paper-raised px-3.5 text-sm text-ink placeholder:text-ink-faint outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent-soft"
           />
         </div>
+        <div className="flex flex-col gap-1.5">
+          <label className="text-[13px] font-medium text-ink-soft" htmlFor="bl">
+            BL
+          </label>
+          <input
+            id="bl"
+            name="bl"
+            defaultValue={filtros.bl ?? ""}
+            placeholder="4910…"
+            className="h-11 w-full rounded-lg border border-line bg-paper-raised px-3.5 text-sm text-ink placeholder:text-ink-faint outline-none transition-colors focus:border-accent focus:ring-2 focus:ring-accent-soft"
+          />
+        </div>
         <div className="flex gap-2">
           <Button type="submit">Filtrar</Button>
           <Button type="submit" variant="secondary" formAction="/inventario">
@@ -118,12 +146,13 @@ export default async function InventarioPage({
       </form>
 
       <div className="overflow-x-auto rounded-xl border border-line bg-paper-raised">
-        <table className="w-full min-w-[820px] text-sm">
+        <table className="w-full min-w-[920px] text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs font-semibold uppercase tracking-wide text-ink-faint">
               <th className="px-4 py-3">Cliente</th>
               <th className="px-4 py-3">Producto</th>
               <th className="px-4 py-3">Lote</th>
+              <th className="px-4 py-3">BL</th>
               <th className="px-4 py-3">Ubicación</th>
               <th className="px-4 py-3">Piezas</th>
               <th className="px-4 py-3">Tarimas</th>
@@ -148,6 +177,7 @@ export default async function InventarioPage({
                       {f.lotes?.codigo_lote ?? "—"}
                     </a>
                   </td>
+                  <td className="px-4 py-3 font-mono text-xs text-ink-soft">{blDe(f) ?? "—"}</td>
                   <td className="px-4 py-3 font-mono text-xs text-ink-soft">
                     {f.ubicaciones?.codigo ?? "—"}
                   </td>
@@ -161,7 +191,7 @@ export default async function InventarioPage({
             })}
             {filas.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-ink-faint">
+                <td colSpan={8} className="px-4 py-10 text-center text-ink-faint">
                   Sin existencias que coincidan con el filtro.
                 </td>
               </tr>

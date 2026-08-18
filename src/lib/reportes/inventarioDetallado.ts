@@ -74,7 +74,14 @@ function construirSlots(
 
   for (const exc of excepcionesConNumero) {
     const idx = slots.findIndex((s) => s.numero_tarima === exc.numero_tarima);
-    if (idx === -1) continue; // número fuera del rango capturado: se ignora, no se inventa
+    if (idx === -1) {
+      // No hay ninguna tarima física con ese número (el lote cayó a modo
+      // "sin seguimiento físico", o el número no cuadra con el rango
+      // capturado) — las piezas capturadas NO se descartan, se asignan
+      // igual que una excepción sin número para no perder el dato.
+      excepcionesSinNumero.push(exc);
+      continue;
+    }
     slots[idx].piezas = exc.piezas;
     slots[idx].esParcial = true;
     asignados.add(idx);
