@@ -21,6 +21,7 @@ export function CompartirComprobante({
   archivoNombre: string;
 }) {
   const [cargando, setCargando] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [disponible] = useState(
     () => typeof navigator !== "undefined" && typeof navigator.share === "function"
   );
@@ -29,8 +30,13 @@ export function CompartirComprobante({
 
   async function compartir() {
     setCargando(true);
+    setErrorMsg(null);
     try {
       const resp = await fetch(`/api/comprobante/${tipo}/${id}`);
+      if (!resp.ok) {
+        setErrorMsg("No se pudo generar el PDF de este comprobante. Avísale a Erik.");
+        return;
+      }
       const blob = await resp.blob();
       const file = new File([blob], archivoNombre, { type: "application/pdf" });
 
@@ -49,8 +55,11 @@ export function CompartirComprobante({
   }
 
   return (
-    <Button type="button" variant="secondary" onClick={compartir} disabled={cargando}>
-      <Share2 size={16} /> {cargando ? "Preparando…" : "Compartir / Imprimir"}
-    </Button>
+    <div className="flex flex-col gap-1.5">
+      <Button type="button" variant="secondary" onClick={compartir} disabled={cargando}>
+        <Share2 size={16} /> {cargando ? "Preparando…" : "Compartir / Imprimir"}
+      </Button>
+      {errorMsg && <p className="text-xs text-crit">{errorMsg}</p>}
+    </div>
   );
 }

@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { limpiarTextoPdf } from "@/lib/utils/pdfTexto";
 
 const MARGEN = 48;
 const ANCHO_PAGINA = 612; // carta
@@ -23,7 +24,24 @@ export interface DatosComprobante {
   firmaDigitalPng?: Uint8Array | null; // si ya se firmó digitalmente desde /comprobantes
 }
 
-export async function generarComprobante(datos: DatosComprobante): Promise<Uint8Array> {
+export async function generarComprobante(datosOriginales: DatosComprobante): Promise<Uint8Array> {
+  const datos: DatosComprobante = {
+    ...datosOriginales,
+    folio: limpiarTextoPdf(datosOriginales.folio),
+    fecha: limpiarTextoPdf(datosOriginales.fecha),
+    hora: limpiarTextoPdf(datosOriginales.hora),
+    cliente: limpiarTextoPdf(datosOriginales.cliente),
+    producto: limpiarTextoPdf(datosOriginales.producto),
+    campos: datosOriginales.campos.map((c) => ({
+      etiqueta: limpiarTextoPdf(c.etiqueta),
+      valor: limpiarTextoPdf(c.valor),
+    })),
+    observaciones: datosOriginales.observaciones ? limpiarTextoPdf(datosOriginales.observaciones) : null,
+    nombreEntregaRecibe: datosOriginales.nombreEntregaRecibe
+      ? limpiarTextoPdf(datosOriginales.nombreEntregaRecibe)
+      : null,
+  };
+
   const doc = await PDFDocument.create();
   const fuente = await doc.embedFont(StandardFonts.Helvetica);
   const fuenteBold = await doc.embedFont(StandardFonts.HelveticaBold);

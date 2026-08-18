@@ -1,4 +1,5 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from "pdf-lib";
+import { limpiarTextoPdf } from "@/lib/utils/pdfTexto";
 
 const MARGEN = 40;
 const ALTO_RENGLON = 18;
@@ -13,12 +14,17 @@ export interface ColumnaPdf {
 }
 
 export async function generarPdfTabla(
-  titulo: string,
-  subtitulo: string,
-  columnas: ColumnaPdf[],
-  filas: string[][],
+  tituloOriginal: string,
+  subtituloOriginal: string,
+  columnasOriginales: ColumnaPdf[],
+  filasOriginales: string[][],
   opciones?: { orientacion?: "vertical" | "horizontal"; filasNegrita?: number[] }
 ): Promise<Uint8Array> {
+  const titulo = limpiarTextoPdf(tituloOriginal);
+  const subtitulo = limpiarTextoPdf(subtituloOriginal);
+  const columnas = columnasOriginales.map((c) => ({ ...c, encabezado: limpiarTextoPdf(c.encabezado) }));
+  const filas = filasOriginales.map((fila) => fila.map((celda) => limpiarTextoPdf(celda)));
+
   const horizontal = opciones?.orientacion === "horizontal";
   const anchoPagina = horizontal ? 792 : 612;
   const altoPagina = horizontal ? 612 : 792;

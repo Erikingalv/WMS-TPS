@@ -70,18 +70,23 @@ export async function GET(
         : []),
     ];
 
-    const pdf = await generarComprobante({
-      tipo: "entrada",
-      folio: data.lotes?.codigo_lote ?? id.slice(0, 8),
-      fecha: formatearFecha(data.fecha),
-      hora: data.hora_carga_descarga?.slice(0, 5) ?? "—",
-      cliente: data.clientes?.nombre ?? "—",
-      producto: data.productos?.nombre ?? "—",
-      campos,
-      observaciones: data.observaciones,
-      nombreEntregaRecibe: data.recibio?.nombre ?? null,
-      firmaDigitalPng: await obtenerFirmaPng(data.firma_digital_url),
-    });
+    let pdf: Uint8Array;
+    try {
+      pdf = await generarComprobante({
+        tipo: "entrada",
+        folio: data.lotes?.codigo_lote ?? id.slice(0, 8),
+        fecha: formatearFecha(data.fecha),
+        hora: data.hora_carga_descarga?.slice(0, 5) ?? "—",
+        cliente: data.clientes?.nombre ?? "—",
+        producto: data.productos?.nombre ?? "—",
+        campos,
+        observaciones: data.observaciones,
+        nombreEntregaRecibe: data.recibio?.nombre ?? null,
+        firmaDigitalPng: await obtenerFirmaPng(data.firma_digital_url),
+      });
+    } catch {
+      return NextResponse.json({ error: "No se pudo generar el PDF de este comprobante" }, { status: 500 });
+    }
 
     return new NextResponse(new Uint8Array(pdf), {
       headers: {
@@ -139,18 +144,23 @@ export async function GET(
       : []),
   ];
 
-  const pdf = await generarComprobante({
-    tipo: "salida",
-    folio: data.lotes?.codigo_lote ?? id.slice(0, 8),
-    fecha: formatearFecha(data.fecha),
-    hora: data.hora_carga_descarga?.slice(0, 5) ?? "—",
-    cliente: data.clientes?.nombre ?? "—",
-    producto: data.productos?.nombre ?? "—",
-    campos,
-    observaciones: data.observaciones,
-    nombreEntregaRecibe: data.autorizo?.nombre ?? null,
-    firmaDigitalPng: await obtenerFirmaPng(data.firma_digital_url),
-  });
+  let pdf: Uint8Array;
+  try {
+    pdf = await generarComprobante({
+      tipo: "salida",
+      folio: data.lotes?.codigo_lote ?? id.slice(0, 8),
+      fecha: formatearFecha(data.fecha),
+      hora: data.hora_carga_descarga?.slice(0, 5) ?? "—",
+      cliente: data.clientes?.nombre ?? "—",
+      producto: data.productos?.nombre ?? "—",
+      campos,
+      observaciones: data.observaciones,
+      nombreEntregaRecibe: data.autorizo?.nombre ?? null,
+      firmaDigitalPng: await obtenerFirmaPng(data.firma_digital_url),
+    });
+  } catch {
+    return NextResponse.json({ error: "No se pudo generar el PDF de este comprobante" }, { status: 500 });
+  }
 
   return new NextResponse(new Uint8Array(pdf), {
     headers: {

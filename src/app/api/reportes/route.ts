@@ -235,10 +235,15 @@ export async function GET(request: NextRequest) {
   }
 
   const subtitulo = `Generado el ${formatearFechaHora(new Date().toISOString())} · ${filas.length} registros`;
-  const pdfBytes = await generarPdfTabla(TITULOS[tipo], subtitulo, columnas, filas, {
-    orientacion: tipo === "cargos" || tipo === "inventario" || columnas.length > 9 ? "horizontal" : "vertical",
-    filasNegrita: esCargosConTotal ? [filas.length - 1] : [],
-  });
+  let pdfBytes: Uint8Array;
+  try {
+    pdfBytes = await generarPdfTabla(TITULOS[tipo], subtitulo, columnas, filas, {
+      orientacion: tipo === "cargos" || tipo === "inventario" || columnas.length > 9 ? "horizontal" : "vertical",
+      filasNegrita: esCargosConTotal ? [filas.length - 1] : [],
+    });
+  } catch {
+    return NextResponse.json({ error: "No se pudo generar el PDF de este reporte" }, { status: 500 });
+  }
   return new NextResponse(new Uint8Array(pdfBytes), {
     headers: {
       "Content-Type": "application/pdf",
