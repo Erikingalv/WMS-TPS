@@ -5,109 +5,153 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { subirArchivos } from "@/lib/supabase/storage";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { numeroONulo, textoONulo } from "@/lib/utils/forms";
+import { textoONulo } from "@/lib/utils/forms";
+import type { LineaEntrada } from "@/components/entradas/EntradaLineaCard";
+
+type ResultadoLinea =
+  | { ok: true; entradaId: string; loteId: string; codigoLote: string; indice: number }
+  | { ok: false; indice: number; mensaje: string };
 
 export async function crearEntrada(formData: FormData) {
   const supabase = await createClient();
   const usuario = await getUsuarioActual();
 
-  const cliente_id = String(formData.get("cliente_id") ?? "");
-  const producto_id = String(formData.get("producto_id") ?? "");
-  const ubicacion_id = String(formData.get("ubicacion_id") ?? "");
-  const cantidad_piezas = Number(formData.get("cantidad_piezas") ?? 0);
-  const cantidad_tarimas = Number(formData.get("cantidad_tarimas") ?? 0);
   const fecha_movimiento = String(formData.get("fecha") ?? "");
   const hora_carga_descarga = String(formData.get("hora_carga_descarga") ?? "");
-  const peso_kg = numeroONulo(formData.get("peso_kg"));
   const recibio_usuario_id = textoONulo(formData.get("recibio_usuario_id"));
   const observaciones = textoONulo(formData.get("observaciones"));
-  const fecha_caducidad = textoONulo(formData.get("fecha_caducidad"));
-  const cajas_por_pallet = numeroONulo(formData.get("cajas_por_pallet"));
-  const cantidad_por_caja = numeroONulo(formData.get("cantidad_por_caja"));
-  const categoria_producto = textoONulo(formData.get("categoria_producto"));
-  const lote_1 = textoONulo(formData.get("lote_1"));
-  const lote_2 = textoONulo(formData.get("lote_2"));
   const numero_contenedor = textoONulo(formData.get("numero_contenedor"));
   const numero_bl = textoONulo(formData.get("numero_bl"));
-  const presentacion = textoONulo(formData.get("presentacion"));
-  const tarima_desde = numeroONulo(formData.get("tarima_desde"));
-  const tarima_hasta = numeroONulo(formData.get("tarima_hasta"));
-  const tarimas_parciales = JSON.parse(String(formData.get("tarimas_parciales_json") ?? "[]"));
 
-  const { data: entrada, error } = await supabase.rpc("registrar_entrada", {
-    p_cliente_id: cliente_id,
-    p_producto_id: producto_id,
-    p_ubicacion_id: ubicacion_id,
-    p_cantidad_piezas: cantidad_piezas,
-    p_cantidad_tarimas: cantidad_tarimas,
-    p_fecha_movimiento: fecha_movimiento,
-    p_hora_carga_descarga: hora_carga_descarga,
-    p_peso_kg: peso_kg,
-    p_recibio_usuario_id: recibio_usuario_id,
-    p_observaciones: observaciones,
-    p_fecha_caducidad: fecha_caducidad,
-    p_cajas_por_pallet: cajas_por_pallet,
-    p_cantidad_por_caja: cantidad_por_caja,
-    p_categoria_producto: categoria_producto,
-    p_lote_1: lote_1,
-    p_lote_2: lote_2,
-    p_numero_contenedor: numero_contenedor,
-    p_numero_bl: numero_bl,
-    p_presentacion: presentacion,
-    p_tarima_desde: tarima_desde,
-    p_tarima_hasta: tarima_hasta,
-    p_tarimas_parciales: tarimas_parciales,
-  });
-
-  if (error || !entrada) {
-    redirect(
-      `/entradas/nueva?error=${encodeURIComponent(error?.message ?? "No se pudo registrar la entrada")}`
-    );
+  let lineas: LineaEntrada[];
+  try {
+    lineas = JSON.parse(String(formData.get("lineas_json") ?? "[]"));
+  } catch {
+    lineas = [];
   }
 
-  try {
-    const fotos = formData.getAll("fotos");
-    const documentos = formData.getAll("documentos");
-    const carpeta = `entradas/${entrada.id}`;
-    const subidasFotos = await subirArchivos(supabase, "documentos", carpeta, fotos);
-    const subidasDocs = await subirArchivos(supabase, "documentos", carpeta, documentos);
+  if (lineas.length === 0) {
+    redirect(`/entradas/nueva?error=${encodeURIComponent("Agrega al menos un producto.")}`);
+  }
 
-    const filas = [
-      ...subidasFotos.map((f) => ({
-        entidad_tipo: "entrada" as const,
-        entidad_id: entrada.id,
-        tipo_documento: "foto" as const,
-        storage_path: f.path,
-        nombre_archivo: f.nombre,
-        subido_por: usuario?.id ?? null,
-      })),
-      ...subidasDocs.map((f) => ({
-        entidad_tipo: "entrada" as const,
-        entidad_id: entrada.id,
-        tipo_documento: "otro" as const,
-        storage_path: f.path,
-        nombre_archivo: f.nombre,
-        subido_por: usuario?.id ?? null,
-      })),
-    ];
+  const resultados: ResultadoLinea[] = [];
 
-    if (filas.length > 0) {
-      await supabase.from("archivos_adjuntos").insert(filas);
+  for (let i = 0; i < lineas.length; i++) {
+    const l = lineas[i];
+    if (!l.cliente_id || !l.producto_id || !l.ubicacion_id || !l.cantidad_piezas || !l.cantidad_tarimas) {
+      resultados.push({
+        ok: false,
+        indice: i,
+        mensaje: `Producto ${i + 1}: faltan datos obligatorios (cliente, producto, ubicación, piezas o tarimas).`,
+      });
+      continue;
     }
-  } catch {
-    // La entrada ya quedó registrada aunque falle la subida de adjuntos;
-    // no revertimos el movimiento por un problema de archivos.
+
+    const { data: entrada, error } = await supabase.rpc("registrar_entrada", {
+      p_cliente_id: l.cliente_id,
+      p_producto_id: l.producto_id,
+      p_ubicacion_id: l.ubicacion_id,
+      p_cantidad_piezas: l.cantidad_piezas,
+      p_cantidad_tarimas: l.cantidad_tarimas,
+      p_fecha_movimiento: fecha_movimiento,
+      p_hora_carga_descarga: hora_carga_descarga,
+      p_peso_kg: l.peso_kg,
+      p_recibio_usuario_id: recibio_usuario_id,
+      p_observaciones: observaciones,
+      p_fecha_caducidad: l.fecha_caducidad || null,
+      p_cajas_por_pallet: l.cajas_por_pallet,
+      p_cantidad_por_caja: l.cantidad_por_caja,
+      p_categoria_producto: l.categoria_producto || null,
+      p_lote_1: l.lote_1 || null,
+      p_lote_2: l.lote_2 || null,
+      p_numero_contenedor: numero_contenedor,
+      p_numero_bl: numero_bl,
+      p_presentacion: l.presentacion || null,
+      p_tarima_desde: l.tarima_desde,
+      p_tarima_hasta: l.tarima_hasta,
+      p_tarimas_parciales: l.tarimas_parciales ?? [],
+    });
+
+    if (error || !entrada) {
+      resultados.push({
+        ok: false,
+        indice: i,
+        mensaje: `Producto ${i + 1}: ${error?.message ?? "no se pudo registrar"}`,
+      });
+      continue;
+    }
+
+    resultados.push({ ok: true, entradaId: entrada.id, loteId: entrada.lote_id, codigoLote: "", indice: i });
+  }
+
+  const exitosas = resultados.filter((r): r is Extract<ResultadoLinea, { ok: true }> => r.ok);
+
+  if (exitosas.length > 0) {
+    const { data: lotes } = await supabase
+      .from("lotes")
+      .select("id, codigo_lote")
+      .in(
+        "id",
+        exitosas.map((r) => r.loteId)
+      );
+    const mapaCodigos = new Map((lotes ?? []).map((l) => [l.id, l.codigo_lote]));
+    exitosas.forEach((r) => {
+      r.codigoLote = mapaCodigos.get(r.loteId) ?? r.loteId;
+    });
+
+    try {
+      const fotos = formData.getAll("fotos");
+      const documentos = formData.getAll("documentos");
+      const carpeta = `entradas/${exitosas[0].entradaId}`;
+      const subidasFotos = await subirArchivos(supabase, "documentos", carpeta, fotos);
+      const subidasDocs = await subirArchivos(supabase, "documentos", carpeta, documentos);
+
+      const filas = exitosas.flatMap((r) => [
+        ...subidasFotos.map((f) => ({
+          entidad_tipo: "entrada" as const,
+          entidad_id: r.entradaId,
+          tipo_documento: "foto" as const,
+          storage_path: f.path,
+          nombre_archivo: f.nombre,
+          subido_por: usuario?.id ?? null,
+        })),
+        ...subidasDocs.map((f) => ({
+          entidad_tipo: "entrada" as const,
+          entidad_id: r.entradaId,
+          tipo_documento: "otro" as const,
+          storage_path: f.path,
+          nombre_archivo: f.nombre,
+          subido_por: usuario?.id ?? null,
+        })),
+      ]);
+
+      if (filas.length > 0) {
+        await supabase.from("archivos_adjuntos").insert(filas);
+      }
+    } catch {
+      // Las entradas ya quedaron registradas aunque falle la subida de
+      // adjuntos; no revertimos los movimientos por un problema de archivos.
+    }
   }
 
   revalidatePath("/entradas");
   revalidatePath("/dashboard");
   revalidatePath("/inventario");
 
-  const { data: lote } = await supabase
-    .from("lotes")
-    .select("codigo_lote")
-    .eq("id", entrada.lote_id)
-    .single();
+  const fallos = resultados.filter((r): r is Extract<ResultadoLinea, { ok: false }> => !r.ok);
 
-  redirect(`/lotes/${lote?.codigo_lote ?? entrada.lote_id}?comprobante=entrada:${entrada.id}`);
+  // Caso más común: un solo producto y todo salió bien — mismo destino de
+  // siempre (abre el comprobante directo en la página del lote).
+  if (lineas.length === 1 && exitosas.length === 1 && fallos.length === 0) {
+    redirect(`/lotes/${exitosas[0].codigoLote}?comprobante=entrada:${exitosas[0].entradaId}`);
+  }
+
+  const params = new URLSearchParams();
+  if (exitosas.length > 0) {
+    params.set("ok", exitosas.map((r) => `${r.entradaId}:${r.codigoLote}`).join(","));
+  }
+  if (fallos.length > 0) {
+    params.set("error", fallos.map((f) => f.mensaje).join(" | "));
+  }
+  redirect(`/entradas/registro-multiple?${params.toString()}`);
 }

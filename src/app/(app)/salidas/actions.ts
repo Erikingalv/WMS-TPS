@@ -6,17 +6,18 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { subirArchivos, subirDataUrl } from "@/lib/supabase/storage";
 import { getUsuarioActual } from "@/lib/auth/session";
-import { numeroONulo, textoONulo } from "@/lib/utils/forms";
+import { textoONulo } from "@/lib/utils/forms";
 import { parsearTarimas } from "@/lib/utils/tarimas";
+import type { LineaSalida } from "@/components/salidas/SalidaLineaCard";
+
+type ResultadoLinea =
+  | { ok: true; salidaId: string; loteId: string; codigoLote: string; indice: number }
+  | { ok: false; indice: number; mensaje: string };
 
 export async function crearSalida(formData: FormData) {
   const supabase = await createClient();
   const usuario = await getUsuarioActual();
 
-  const lote_id = String(formData.get("lote_id") ?? "");
-  const ubicacion_id = String(formData.get("ubicacion_id") ?? "");
-  const cantidad_piezas = Number(formData.get("cantidad_piezas") ?? 0);
-  const cantidad_tarimas = Number(formData.get("cantidad_tarimas") ?? 0);
   const fecha_movimiento = String(formData.get("fecha") ?? "");
   const hora_carga_descarga = String(formData.get("hora_carga_descarga") ?? "");
   const destino = textoONulo(formData.get("destino"));
@@ -26,34 +27,16 @@ export async function crearSalida(formData: FormData) {
   const autorizo_usuario_id = textoONulo(formData.get("autorizo_usuario_id"));
   const observaciones = textoONulo(formData.get("observaciones"));
   const firmaDataUrl = textoONulo(formData.get("firma_digital_dataurl"));
-  const cajas_por_pallet = numeroONulo(formData.get("cajas_por_pallet"));
-  const cantidad_por_caja = numeroONulo(formData.get("cantidad_por_caja"));
-  const categoria_producto = textoONulo(formData.get("categoria_producto"));
-  const lote_1 = textoONulo(formData.get("lote_1"));
-  const lote_2 = textoONulo(formData.get("lote_2"));
-  const numero_contenedor = textoONulo(formData.get("numero_contenedor"));
-  const numero_bl = textoONulo(formData.get("numero_bl"));
-  const presentacion = textoONulo(formData.get("presentacion"));
-  const tarimaNumerosTexto = String(formData.get("tarima_numeros_texto") ?? "").trim();
-  const piezas_tarima_parcial = numeroONulo(formData.get("piezas_tarima_parcial"));
-  const numero_tarima_parcial = numeroONulo(formData.get("numero_tarima_parcial"));
 
-  if (!lote_id || !ubicacion_id) {
-    redirect(
-      `/salidas/nueva?error=${encodeURIComponent("Selecciona un lote válido para surtir.")}`
-    );
+  let lineas: LineaSalida[];
+  try {
+    lineas = JSON.parse(String(formData.get("lineas_json") ?? "[]"));
+  } catch {
+    lineas = [];
   }
 
-  let tarima_numeros: number[] | null = null;
-  if (tarimaNumerosTexto) {
-    tarima_numeros = parsearTarimas(tarimaNumerosTexto);
-    if (!tarima_numeros) {
-      redirect(
-        `/salidas/nueva?error=${encodeURIComponent(
-          `No entendí el identificador de tarimas "${tarimaNumerosTexto}". Usa números separados por coma y/o rangos, ej. "1,5,15-17".`
-        )}`
-      );
-    }
+  if (lineas.length === 0) {
+    redirect(`/salidas/nueva?error=${encodeURIComponent("Agrega al menos un producto.")}`);
   }
 
   let firma_digital_url: string | null = null;
@@ -70,67 +53,125 @@ export async function crearSalida(formData: FormData) {
     }
   }
 
-  const { data: salida, error } = await supabase.rpc("registrar_salida", {
-    p_lote_id: lote_id,
-    p_ubicacion_id: ubicacion_id,
-    p_cantidad_piezas: cantidad_piezas,
-    p_cantidad_tarimas: cantidad_tarimas,
-    p_fecha_movimiento: fecha_movimiento,
-    p_hora_carga_descarga: hora_carga_descarga,
-    p_destino: destino,
-    p_transportista: transportista,
-    p_placas: placas,
-    p_operador: operador,
-    p_autorizo_usuario_id: autorizo_usuario_id,
-    p_observaciones: observaciones,
-    p_firma_digital_url: firma_digital_url,
-    p_cajas_por_pallet: cajas_por_pallet,
-    p_cantidad_por_caja: cantidad_por_caja,
-    p_categoria_producto: categoria_producto,
-    p_lote_1: lote_1,
-    p_lote_2: lote_2,
-    p_numero_contenedor: numero_contenedor,
-    p_numero_bl: numero_bl,
-    p_presentacion: presentacion,
-    p_tarima_numeros: tarima_numeros,
-    p_piezas_tarima_parcial: piezas_tarima_parcial,
-    p_numero_tarima_parcial: numero_tarima_parcial,
-  });
+  const resultados: ResultadoLinea[] = [];
 
-  if (error || !salida) {
-    redirect(
-      `/salidas/nueva?error=${encodeURIComponent(error?.message ?? "No se pudo registrar la salida")}`
-    );
+  for (let i = 0; i < lineas.length; i++) {
+    const l = lineas[i];
+
+    if (!l.lote_id || !l.ubicacion_id || !l.cantidad_piezas || !l.cantidad_tarimas) {
+      resultados.push({
+        ok: false,
+        indice: i,
+        mensaje: `Producto ${i + 1}: selecciona un lote válido y captura piezas/tarimas.`,
+      });
+      continue;
+    }
+
+    let tarima_numeros: number[] | null = null;
+    if (l.tarima_numeros_texto?.trim()) {
+      tarima_numeros = parsearTarimas(l.tarima_numeros_texto.trim());
+      if (!tarima_numeros) {
+        resultados.push({
+          ok: false,
+          indice: i,
+          mensaje: `Producto ${i + 1}: no entendí el identificador de tarimas "${l.tarima_numeros_texto}".`,
+        });
+        continue;
+      }
+    }
+
+    const { data: salida, error } = await supabase.rpc("registrar_salida", {
+      p_lote_id: l.lote_id,
+      p_ubicacion_id: l.ubicacion_id,
+      p_cantidad_piezas: l.cantidad_piezas,
+      p_cantidad_tarimas: l.cantidad_tarimas,
+      p_fecha_movimiento: fecha_movimiento,
+      p_hora_carga_descarga: hora_carga_descarga,
+      p_destino: destino,
+      p_transportista: transportista,
+      p_placas: placas,
+      p_operador: operador,
+      p_autorizo_usuario_id: autorizo_usuario_id,
+      p_observaciones: observaciones,
+      p_firma_digital_url: firma_digital_url,
+      p_cajas_por_pallet: l.cajas_por_pallet,
+      p_cantidad_por_caja: l.cantidad_por_caja,
+      p_categoria_producto: l.categoria_producto || null,
+      p_lote_1: l.lote_1 || null,
+      p_lote_2: l.lote_2 || null,
+      p_numero_contenedor: l.numero_contenedor || null,
+      p_numero_bl: l.numero_bl || null,
+      p_presentacion: l.presentacion || null,
+      p_tarima_numeros: tarima_numeros,
+      p_piezas_tarima_parcial: l.piezas_tarima_parcial,
+      p_numero_tarima_parcial: l.numero_tarima_parcial,
+    });
+
+    if (error || !salida) {
+      resultados.push({
+        ok: false,
+        indice: i,
+        mensaje: `Producto ${i + 1}: ${error?.message ?? "no se pudo registrar"}`,
+      });
+      continue;
+    }
+
+    resultados.push({ ok: true, salidaId: salida.id, loteId: l.lote_id, codigoLote: "", indice: i });
   }
 
-  try {
-    const fotos = formData.getAll("fotos");
-    const subidas = await subirArchivos(supabase, "documentos", `salidas/${salida.id}`, fotos);
-    if (subidas.length > 0) {
-      await supabase.from("archivos_adjuntos").insert(
-        subidas.map((f) => ({
-          entidad_tipo: "salida" as const,
-          entidad_id: salida.id,
-          tipo_documento: "foto" as const,
-          storage_path: f.path,
-          nombre_archivo: f.nombre,
-          subido_por: usuario?.id ?? null,
-        }))
+  const exitosas = resultados.filter((r): r is Extract<ResultadoLinea, { ok: true }> => r.ok);
+
+  if (exitosas.length > 0) {
+    const { data: lotes } = await supabase
+      .from("lotes")
+      .select("id, codigo_lote")
+      .in(
+        "id",
+        exitosas.map((r) => r.loteId)
       );
+    const mapaCodigos = new Map((lotes ?? []).map((l) => [l.id, l.codigo_lote]));
+    exitosas.forEach((r) => {
+      r.codigoLote = mapaCodigos.get(r.loteId) ?? r.loteId;
+    });
+
+    try {
+      const fotos = formData.getAll("fotos");
+      const carpeta = `salidas/${exitosas[0].salidaId}`;
+      const subidas = await subirArchivos(supabase, "documentos", carpeta, fotos);
+      if (subidas.length > 0) {
+        const filas = exitosas.flatMap((r) =>
+          subidas.map((f) => ({
+            entidad_tipo: "salida" as const,
+            entidad_id: r.salidaId,
+            tipo_documento: "foto" as const,
+            storage_path: f.path,
+            nombre_archivo: f.nombre,
+            subido_por: usuario?.id ?? null,
+          }))
+        );
+        await supabase.from("archivos_adjuntos").insert(filas);
+      }
+    } catch {
+      // Las salidas ya quedaron registradas aunque falle la subida de evidencia.
     }
-  } catch {
-    // La salida ya quedó registrada aunque falle la subida de evidencia.
   }
 
   revalidatePath("/salidas");
   revalidatePath("/dashboard");
   revalidatePath("/inventario");
 
-  const { data: lote } = await supabase
-    .from("lotes")
-    .select("codigo_lote")
-    .eq("id", lote_id)
-    .single();
+  const fallos = resultados.filter((r): r is Extract<ResultadoLinea, { ok: false }> => !r.ok);
 
-  redirect(`/lotes/${lote?.codigo_lote ?? lote_id}?comprobante=salida:${salida.id}`);
+  if (lineas.length === 1 && exitosas.length === 1 && fallos.length === 0) {
+    redirect(`/lotes/${exitosas[0].codigoLote}?comprobante=salida:${exitosas[0].salidaId}`);
+  }
+
+  const params = new URLSearchParams();
+  if (exitosas.length > 0) {
+    params.set("ok", exitosas.map((r) => `${r.salidaId}:${r.codigoLote}`).join(","));
+  }
+  if (fallos.length > 0) {
+    params.set("error", fallos.map((f) => f.mensaje).join(" | "));
+  }
+  redirect(`/salidas/registro-multiple?${params.toString()}`);
 }
