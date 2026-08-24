@@ -4,11 +4,21 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { subirArchivos, subirDataUrl } from "@/lib/supabase/storage";
+import { subirDataUrl } from "@/lib/supabase/storage";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { textoONulo } from "@/lib/utils/forms";
 import { parsearTarimas } from "@/lib/utils/tarimas";
+import type { ArchivoSubido } from "@/lib/utils/subidaCliente";
 import type { LineaSalida } from "@/components/salidas/SalidaLineaCard";
+
+function parsearArchivos(formData: FormData, campo: string): ArchivoSubido[] {
+  try {
+    const valor = JSON.parse(String(formData.get(campo) ?? "[]"));
+    return Array.isArray(valor) ? valor : [];
+  } catch {
+    return [];
+  }
+}
 
 type ResultadoLinea =
   | { ok: true; salidaId: string; loteId: string; codigoLote: string; indice: number }
@@ -53,6 +63,10 @@ export async function crearSalida(formData: FormData) {
     }
   }
 
+  // Todas las líneas de este envío comparten el mismo grupo_id — así se
+  // documentan y se muestran como un solo movimiento, aunque cada
+  // producto siga siendo su propia salida internamente.
+  const grupoId = randomUUID();
   const resultados: ResultadoLinea[] = [];
 
   for (let i = 0; i < lineas.length; i++) {
@@ -105,6 +119,7 @@ export async function crearSalida(formData: FormData) {
       p_tarima_numeros: tarima_numeros,
       p_piezas_tarima_parcial: l.piezas_tarima_parcial,
       p_numero_tarima_parcial: l.numero_tarima_parcial,
+      p_grupo_id: grupoId,
     });
 
     if (error || !salida) {
@@ -135,9 +150,7 @@ export async function crearSalida(formData: FormData) {
     });
 
     try {
-      const fotos = formData.getAll("fotos");
-      const carpeta = `salidas/${exitosas[0].salidaId}`;
-      const subidas = await subirArchivos(supabase, "documentos", carpeta, fotos);
+      const subidas = parsearArchivos(formData, "fotos");
       if (subidas.length > 0) {
         const filas = exitosas.flatMap((r) =>
           subidas.map((f) => ({
@@ -162,7 +175,11 @@ export async function crearSalida(formData: FormData) {
 
   const fallos = resultados.filter((r): r is Extract<ResultadoLinea, { ok: false }> => !r.ok);
 
-  if (lineas.length === 1 && exitosas.length === 1 && fallos.length === 0) {
+  // Si todo salió bien (uno o varios productos), mismo destino de
+  // siempre: abre el comprobante desde la página del lote de la primera
+  // línea — el comprobante detecta solo si hay más productos en el mismo
+  // grupo y los muestra todos juntos, como un solo movimiento.
+  if (exitosas.length > 0 && fallos.length === 0) {
     redirect(`/lotes/${exitosas[0].codigoLote}?comprobante=salida:${exitosas[0].salidaId}`);
   }
 

@@ -1,29 +1,6 @@
-import { randomUUID } from "node:crypto";
 import type { createClient } from "@/lib/supabase/server";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
-
-// Sube cada archivo válido del FormData a `bucket/carpeta/<uuid>.<ext>`.
-// Ignora entradas vacías (inputs de archivo sin selección).
-export async function subirArchivos(
-  supabase: SupabaseServerClient,
-  bucket: string,
-  carpeta: string,
-  files: FormDataEntryValue[]
-): Promise<{ path: string; nombre: string }[]> {
-  const validos = files.filter((f): f is File => f instanceof File && f.size > 0);
-
-  return Promise.all(
-    validos.map(async (file) => {
-      const ext = file.name.split(".").pop() || "bin";
-      const path = `${carpeta}/${randomUUID()}.${ext}`;
-      const { error } = await supabase.storage.from(bucket).upload(path, file);
-      if (error) throw error;
-
-      return { path, nombre: file.name };
-    })
-  );
-}
 
 // Sube una imagen capturada como data URL (ej. firma digital en canvas).
 export async function subirDataUrl(

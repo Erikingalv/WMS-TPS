@@ -134,6 +134,7 @@ export type Entrada = {
   tarima_hasta: number | null;
   tarimas_parciales: TarimaParcial[];
   firma_digital_url: string | null;
+  grupo_id: string;
 };
 
 export type Salida = {
@@ -168,6 +169,7 @@ export type Salida = {
   tarima_numeros: number[] | null;
   piezas_tarima_parcial: number | null;
   numero_tarima_parcial: number | null;
+  grupo_id: string;
 };
 
 export type MovimientoInterno = {

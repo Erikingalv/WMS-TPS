@@ -3,12 +3,14 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { PUEDE_EDITAR_CLIENTES, tienePermiso } from "@/lib/auth/permisos";
+import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/Button";
 import { formatearFecha, formatearFechaHora } from "@/lib/utils/dates";
 import type { Cliente, Producto, Lote, Ubicacion } from "@/lib/types/database";
 
 type EntradaFila = {
   id: string;
+  grupo_id: string;
   fecha: string;
   cantidad_piezas: number;
   cantidad_tarimas: number;
@@ -17,6 +19,52 @@ type EntradaFila = {
   lotes: Pick<Lote, "codigo_lote"> | null;
   ubicaciones: Pick<Ubicacion, "codigo"> | null;
 };
+
+type GrupoEntrada = {
+  id: string; // de la primera línea — a dónde apunta el comprobante del grupo
+  fecha: string;
+  clientes: string;
+  productos: string;
+  lotesTexto: string;
+  cantidad_piezas: number;
+  cantidad_tarimas: number;
+  ubicaciones: string;
+  numProductos: number;
+};
+
+function unicos(valores: (string | undefined)[]): string[] {
+  return Array.from(new Set(valores.filter((v): v is string => !!v)));
+}
+
+function agruparPorMovimiento(entradas: EntradaFila[]): GrupoEntrada[] {
+  const grupos = new Map<string, EntradaFila[]>();
+  for (const e of entradas) {
+    const lista = grupos.get(e.grupo_id) ?? [];
+    lista.push(e);
+    grupos.set(e.grupo_id, lista);
+  }
+
+  return Array.from(grupos.values()).map((lineas) => {
+    const primera = lineas[0];
+    return {
+      id: primera.id,
+      fecha: primera.fecha,
+      clientes: unicos(lineas.map((l) => l.clientes?.nombre)).join(", ") || "—",
+      productos:
+        lineas.length === 1
+          ? (primera.productos?.nombre ?? "—")
+          : `${lineas.length} productos`,
+      lotesTexto:
+        lineas.length === 1
+          ? (primera.lotes?.codigo_lote ?? "—")
+          : `${lineas.length} lotes`,
+      cantidad_piezas: lineas.reduce((s, l) => s + l.cantidad_piezas, 0),
+      cantidad_tarimas: lineas.reduce((s, l) => s + l.cantidad_tarimas, 0),
+      ubicaciones: unicos(lineas.map((l) => l.ubicaciones?.codigo)).join(", ") || "—",
+      numProductos: lineas.length,
+    };
+  });
+}
 
 export default async function EntradasPage({
   searchParams,
@@ -32,14 +80,17 @@ export default async function EntradasPage({
   let query = supabase
     .from("entradas")
     .select(
-      "id, fecha, cantidad_piezas, cantidad_tarimas, clientes(nombre), productos(nombre), lotes(codigo_lote), ubicaciones(codigo)"
+      "id, grupo_id, fecha, cantidad_piezas, cantidad_tarimas, clientes(nombre), productos(nombre), lotes(codigo_lote), ubicaciones(codigo)"
     )
     .order("fecha", { ascending: false });
   if (desde) query = query.gte("fecha", desde);
   if (hasta) query = query.lte("fecha", `${hasta}T23:59:59`);
-  if (!filtrado) query = query.limit(100);
+  if (!filtrado) query = query.limit(200);
   const { data } = await query;
   const entradas = (data ?? []) as unknown as EntradaFila[];
+  const movimientos = agruparPorMovimiento(entradas).sort(
+    (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -49,7 +100,7 @@ export default async function EntradasPage({
           <p className="mt-1 text-sm text-ink-soft">
             {filtrado
               ? `Mostrando entradas ${desde ? `desde ${formatearFecha(desde)}` : ""}${hasta ? ` hasta ${formatearFecha(hasta)}` : ""} · `
-              : "Últimos 100 movimientos"}
+              : "Últimos movimientos"}
             {filtrado && (
               <Link href="/entradas" className="text-accent hover:underline">
                 ver todas
@@ -65,7 +116,7 @@ export default async function EntradasPage({
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-line bg-paper-raised">
-        <table className="w-full min-w-[720px] text-sm">
+        <table className="w-full min-w-[760px] text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs font-semibold uppercase tracking-wide text-ink-faint">
               <th className="px-4 py-3">Fecha</th>
@@ -77,28 +128,31 @@ export default async function EntradasPage({
             </tr>
           </thead>
           <tbody>
-            {entradas.map((e) => (
-              <tr key={e.id} className="border-b border-line last:border-0 hover:bg-accent-soft/40">
-                <td className="px-4 py-3 text-ink-soft">{formatearFechaHora(e.fecha)}</td>
-                <td className="px-4 py-3 text-ink">{e.clientes?.nombre ?? "—"}</td>
-                <td className="px-4 py-3 text-ink-soft">{e.productos?.nombre ?? "—"}</td>
+            {movimientos.map((m) => (
+              <tr key={m.id} className="border-b border-line last:border-0 hover:bg-accent-soft/40">
+                <td className="px-4 py-3 text-ink-soft">{formatearFechaHora(m.fecha)}</td>
+                <td className="px-4 py-3 text-ink">{m.clientes}</td>
+                <td className="px-4 py-3 text-ink-soft">
+                  <span className="inline-flex items-center gap-2">
+                    {m.productos}
+                    {m.numProductos > 1 && <Badge tone="info">consolidado</Badge>}
+                  </span>
+                </td>
                 <td className="px-4 py-3">
                   <a
-                    href={e.lotes ? `/lotes/${e.lotes.codigo_lote}` : undefined}
+                    href={`/comprobantes/entrada/${m.id}`}
                     className="font-mono text-xs text-accent hover:underline"
                   >
-                    {e.lotes?.codigo_lote ?? "—"}
+                    {m.lotesTexto}
                   </a>
                 </td>
                 <td className="px-4 py-3 tabular-nums text-ink-soft">
-                  {e.cantidad_piezas} pz · {e.cantidad_tarimas} tar
+                  {m.cantidad_piezas} pz · {m.cantidad_tarimas} tar
                 </td>
-                <td className="px-4 py-3 font-mono text-xs text-ink-soft">
-                  {e.ubicaciones?.codigo ?? "—"}
-                </td>
+                <td className="px-4 py-3 font-mono text-xs text-ink-soft">{m.ubicaciones}</td>
               </tr>
             ))}
-            {entradas.length === 0 && (
+            {movimientos.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-10 text-center text-ink-faint">
                   Aún no hay entradas registradas.

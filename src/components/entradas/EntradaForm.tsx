@@ -5,6 +5,7 @@ import { Plus } from "lucide-react";
 import { Input, Select, Textarea } from "@/components/ui/Field";
 import { SubmitButton, ButtonLink, Button } from "@/components/ui/Button";
 import { EvidenciaFotos } from "@/components/ui/EvidenciaFotos";
+import { DocumentosSubida } from "@/components/ui/DocumentosSubida";
 import { EntradaLineaCard, lineaEntradaVacia, type LineaEntrada } from "@/components/entradas/EntradaLineaCard";
 import type { Cliente, Producto, Ubicacion, Usuario } from "@/lib/types/database";
 
@@ -98,15 +99,12 @@ export function EntradaForm({
 
       <Textarea label="Observaciones" name="observaciones" hint="Aplica a todo el embarque" />
 
-      <EvidenciaFotos name="fotos" label="Fotografías de evidencia" />
+      <EvidenciaFotos name="fotos" label="Fotografías de evidencia" carpeta="entradas" />
 
-      <Input
-        label="Documentos"
+      <DocumentosSubida
         name="documentos"
-        type="file"
-        accept="image/*,application/pdf"
-        multiple
         hint="Factura, carta porte, packing list, orden de compra…"
+        carpeta="entradas"
       />
 
       <input type="hidden" name="lineas_json" value={JSON.stringify(lineas)} />

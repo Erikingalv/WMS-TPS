@@ -103,7 +103,7 @@ export function SalidaForm({
 
       <Textarea label="Observaciones" name="observaciones" hint="Aplica a todo el viaje" />
 
-      <EvidenciaFotos name="fotos" label="Fotografías de evidencia" />
+      <EvidenciaFotos name="fotos" label="Fotografías de evidencia" carpeta="salidas" />
 
       <SignaturePad name="firma_digital_dataurl" />
 

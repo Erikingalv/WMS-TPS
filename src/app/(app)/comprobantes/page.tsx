@@ -5,6 +5,19 @@ import { Badge } from "@/components/ui/Badge";
 import { formatearFechaHora } from "@/lib/utils/dates";
 import type { Cliente, Lote, Producto } from "@/lib/types/database";
 
+type FilaRaw = {
+  tipo: "entrada" | "salida";
+  id: string;
+  grupo_id: string;
+  fecha: string;
+  cantidad_piezas: number;
+  cantidad_tarimas: number;
+  firmado: boolean;
+  cliente: string;
+  producto: string;
+  codigo_lote: string;
+};
+
 type FilaComprobante = {
   tipo: "entrada" | "salida";
   id: string;
@@ -15,7 +28,38 @@ type FilaComprobante = {
   cliente: string;
   producto: string;
   codigo_lote: string;
+  numProductos: number;
 };
+
+function unicos(valores: string[]): string[] {
+  return Array.from(new Set(valores.filter(Boolean)));
+}
+
+function agruparPorMovimiento(filas: FilaRaw[]): FilaComprobante[] {
+  const grupos = new Map<string, FilaRaw[]>();
+  for (const f of filas) {
+    const clave = `${f.tipo}:${f.grupo_id}`;
+    const lista = grupos.get(clave) ?? [];
+    lista.push(f);
+    grupos.set(clave, lista);
+  }
+
+  return Array.from(grupos.values()).map((lineas) => {
+    const primera = lineas[0];
+    return {
+      tipo: primera.tipo,
+      id: primera.id,
+      fecha: primera.fecha,
+      cantidad_piezas: lineas.reduce((s, l) => s + l.cantidad_piezas, 0),
+      cantidad_tarimas: lineas.reduce((s, l) => s + l.cantidad_tarimas, 0),
+      firmado: primera.firmado,
+      cliente: unicos(lineas.map((l) => l.cliente)).join(", ") || "—",
+      producto: lineas.length === 1 ? primera.producto : `${lineas.length} productos`,
+      codigo_lote: lineas.length === 1 ? primera.codigo_lote : `${lineas.length} lotes`,
+      numProductos: lineas.length,
+    };
+  });
+}
 
 export default async function ComprobantesPage({
   searchParams,
@@ -27,6 +71,7 @@ export default async function ComprobantesPage({
 
   type Raw = {
     id: string;
+    grupo_id: string;
     fecha: string;
     cantidad_piezas: number;
     cantidad_tarimas: number;
@@ -42,25 +87,26 @@ export default async function ComprobantesPage({
       : supabase
           .from("entradas")
           .select(
-            "id, fecha, cantidad_piezas, cantidad_tarimas, firma_digital_url, clientes(nombre), productos(nombre), lotes(codigo_lote)"
+            "id, grupo_id, fecha, cantidad_piezas, cantidad_tarimas, firma_digital_url, clientes(nombre), productos(nombre), lotes(codigo_lote)"
           )
           .order("fecha", { ascending: false })
-          .limit(150),
+          .limit(300),
     tipo === "entradas"
       ? Promise.resolve({ data: [] as Raw[] })
       : supabase
           .from("salidas")
           .select(
-            "id, fecha, cantidad_piezas, cantidad_tarimas, firma_digital_url, clientes(nombre), productos(nombre), lotes(codigo_lote)"
+            "id, grupo_id, fecha, cantidad_piezas, cantidad_tarimas, firma_digital_url, clientes(nombre), productos(nombre), lotes(codigo_lote)"
           )
           .order("fecha", { ascending: false })
-          .limit(150),
+          .limit(300),
   ]);
 
-  let filas: FilaComprobante[] = [
+  const filasRaw: FilaRaw[] = [
     ...((entradas ?? []) as unknown as Raw[]).map((e) => ({
       tipo: "entrada" as const,
       id: e.id,
+      grupo_id: e.grupo_id,
       fecha: e.fecha,
       cantidad_piezas: e.cantidad_piezas,
       cantidad_tarimas: e.cantidad_tarimas,
@@ -72,6 +118,7 @@ export default async function ComprobantesPage({
     ...((salidas ?? []) as unknown as Raw[]).map((s) => ({
       tipo: "salida" as const,
       id: s.id,
+      grupo_id: s.grupo_id,
       fecha: s.fecha,
       cantidad_piezas: s.cantidad_piezas,
       cantidad_tarimas: s.cantidad_tarimas,
@@ -80,7 +127,11 @@ export default async function ComprobantesPage({
       producto: s.productos?.nombre ?? "—",
       codigo_lote: s.lotes?.codigo_lote ?? "—",
     })),
-  ].sort((a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime());
+  ];
+
+  let filas = agruparPorMovimiento(filasRaw).sort(
+    (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
+  );
 
   if (firma === "pendientes") filas = filas.filter((f) => !f.firmado);
   if (firma === "firmados") filas = filas.filter((f) => f.firmado);
@@ -154,6 +205,12 @@ export default async function ComprobantesPage({
               <p className="text-sm text-ink">
                 {f.cliente} · {f.producto} ·{" "}
                 <span className="font-mono text-xs text-ink-soft">{f.codigo_lote}</span>
+                {f.numProductos > 1 && (
+                  <>
+                    {" "}
+                    <Badge tone="info">consolidado</Badge>
+                  </>
+                )}
               </p>
               <p className="text-xs text-ink-faint">
                 {formatearFechaHora(f.fecha)} · {f.cantidad_piezas} pz / {f.cantidad_tarimas} tar

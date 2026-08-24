@@ -14,6 +14,10 @@ type FilaResumen = {
   lotes: { codigo_lote: string } | null;
 };
 
+// Solo se llega aquí cuando el embarque tuvo al menos un producto que no
+// se pudo registrar — si todo salió bien, el comprobante (individual o
+// consolidado, según tenga hermanos en su grupo) se abre directo desde la
+// página del lote, sin pasar por aquí.
 export default async function RegistroMultipleEntradasPage({
   searchParams,
 }: {
@@ -59,24 +63,25 @@ export default async function RegistroMultipleEntradasPage({
         </div>
       )}
 
-      {entradas.length > 1 && (
+      {entradas.length > 0 && (
         <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
           <div>
-            <p className="text-sm font-semibold text-ink">Comprobante consolidado</p>
+            <p className="text-sm font-semibold text-ink">Comprobante</p>
             <p className="text-xs text-ink-faint">
-              Un solo PDF con los {entradas.length} productos de este embarque, en vez de uno por cada uno.
+              {entradas.length > 1
+                ? `Un solo documento con los ${entradas.length} productos que sí se registraron.`
+                : "Del producto que se registró."}
             </p>
           </div>
           <div className="flex gap-2">
-            <ButtonLink
-              href={`/api/comprobante/consolidado/entrada?ids=${entradas.map((e) => e.id).join(",")}`}
-              variant="secondary"
-            >
+            <ButtonLink href={`/api/comprobante/entrada/${entradas[0].id}`} variant="secondary">
               <FileDown size={16} /> Descargar PDF
             </ButtonLink>
             <CompartirComprobante
-              url={`/api/comprobante/consolidado/entrada?ids=${entradas.map((e) => e.id).join(",")}`}
-              archivoNombre="comprobante-entrada-consolidado.pdf"
+              url={`/api/comprobante/entrada/${entradas[0].id}`}
+              archivoNombre={
+                entradas.length > 1 ? "comprobante-entrada-consolidado.pdf" : `comprobante-entrada-${entradas[0].lotes?.codigo_lote ?? entradas[0].id}.pdf`
+              }
             />
           </div>
         </Card>
@@ -96,8 +101,8 @@ export default async function RegistroMultipleEntradasPage({
                   <span className="font-mono">{e.lotes?.codigo_lote ?? "—"}</span>
                 </p>
               </div>
-              <ButtonLink href={`/comprobantes/entrada/${e.id}`} variant="secondary" size="sm">
-                Ver comprobante individual
+              <ButtonLink href={`/lotes/${e.lotes?.codigo_lote ?? ""}`} variant="secondary" size="sm">
+                Ver lote
               </ButtonLink>
             </Card>
           ))}

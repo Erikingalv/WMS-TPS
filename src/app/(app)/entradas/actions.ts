@@ -1,12 +1,22 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { subirArchivos } from "@/lib/supabase/storage";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { textoONulo } from "@/lib/utils/forms";
+import type { ArchivoSubido } from "@/lib/utils/subidaCliente";
 import type { LineaEntrada } from "@/components/entradas/EntradaLineaCard";
+
+function parsearArchivos(formData: FormData, campo: string): ArchivoSubido[] {
+  try {
+    const valor = JSON.parse(String(formData.get(campo) ?? "[]"));
+    return Array.isArray(valor) ? valor : [];
+  } catch {
+    return [];
+  }
+}
 
 type ResultadoLinea =
   | { ok: true; entradaId: string; loteId: string; codigoLote: string; indice: number }
@@ -34,6 +44,10 @@ export async function crearEntrada(formData: FormData) {
     redirect(`/entradas/nueva?error=${encodeURIComponent("Agrega al menos un producto.")}`);
   }
 
+  // Todas las líneas de este envío comparten el mismo grupo_id — así se
+  // documentan y se muestran como un solo movimiento, aunque cada
+  // producto siga siendo su propio lote/entrada internamente.
+  const grupoId = randomUUID();
   const resultados: ResultadoLinea[] = [];
 
   for (let i = 0; i < lineas.length; i++) {
@@ -70,6 +84,7 @@ export async function crearEntrada(formData: FormData) {
       p_tarima_desde: l.tarima_desde,
       p_tarima_hasta: l.tarima_hasta,
       p_tarimas_parciales: l.tarimas_parciales ?? [],
+      p_grupo_id: grupoId,
     });
 
     if (error || !entrada) {
@@ -100,11 +115,8 @@ export async function crearEntrada(formData: FormData) {
     });
 
     try {
-      const fotos = formData.getAll("fotos");
-      const documentos = formData.getAll("documentos");
-      const carpeta = `entradas/${exitosas[0].entradaId}`;
-      const subidasFotos = await subirArchivos(supabase, "documentos", carpeta, fotos);
-      const subidasDocs = await subirArchivos(supabase, "documentos", carpeta, documentos);
+      const subidasFotos = parsearArchivos(formData, "fotos");
+      const subidasDocs = parsearArchivos(formData, "documentos");
 
       const filas = exitosas.flatMap((r) => [
         ...subidasFotos.map((f) => ({
@@ -140,9 +152,11 @@ export async function crearEntrada(formData: FormData) {
 
   const fallos = resultados.filter((r): r is Extract<ResultadoLinea, { ok: false }> => !r.ok);
 
-  // Caso más común: un solo producto y todo salió bien — mismo destino de
-  // siempre (abre el comprobante directo en la página del lote).
-  if (lineas.length === 1 && exitosas.length === 1 && fallos.length === 0) {
+  // Si todo salió bien (uno o varios productos), mismo destino de
+  // siempre: abre el comprobante desde la página del lote de la primera
+  // línea — el comprobante detecta solo si hay más productos en el mismo
+  // grupo y los muestra todos juntos, como un solo movimiento.
+  if (exitosas.length > 0 && fallos.length === 0) {
     redirect(`/lotes/${exitosas[0].codigoLote}?comprobante=entrada:${exitosas[0].entradaId}`);
   }
 

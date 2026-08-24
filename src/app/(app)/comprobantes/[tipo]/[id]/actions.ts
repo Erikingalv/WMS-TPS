@@ -4,9 +4,28 @@ import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { subirArchivos, subirDataUrl } from "@/lib/supabase/storage";
+import { subirDataUrl } from "@/lib/supabase/storage";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { PUEDE_SUBIR_EVIDENCIA, tienePermiso } from "@/lib/auth/permisos";
+import type { ArchivoSubido } from "@/lib/utils/subidaCliente";
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+// Un embarque/viaje consolidado registra un movimiento por producto, todos
+// con el mismo grupo_id — firmar o agregar evidencia debe aplicar a todos
+// ellos, no solo a la línea que se estaba viendo.
+async function idsDelGrupo(
+  supabase: SupabaseServerClient,
+  tipo: "entrada" | "salida",
+  id: string
+): Promise<string[]> {
+  const tabla = tipo === "entrada" ? "entradas" : "salidas";
+  const { data: base } = await supabase.from(tabla).select("grupo_id").eq("id", id).single();
+  if (!base) return [id];
+  const { data: hermanos } = await supabase.from(tabla).select("id").eq("grupo_id", base.grupo_id);
+  const ids = (hermanos ?? []).map((r) => r.id as string);
+  return ids.length > 0 ? ids : [id];
+}
 
 export async function firmarComprobante(
   tipo: "entrada" | "salida",
@@ -34,14 +53,19 @@ export async function firmarComprobante(
     );
   }
 
-  const { error } = await supabase.rpc("guardar_firma_comprobante", {
-    p_tipo: tipo,
-    p_id: id,
-    p_firma_digital_url: firma_digital_url,
-  });
+  const ids = await idsDelGrupo(supabase, tipo, id);
+  let algunaFirmada = false;
+  for (const idMiembro of ids) {
+    const { error } = await supabase.rpc("guardar_firma_comprobante", {
+      p_tipo: tipo,
+      p_id: idMiembro,
+      p_firma_digital_url: firma_digital_url,
+    });
+    if (!error) algunaFirmada = true;
+  }
 
-  if (error) {
-    redirect(`/comprobantes/${tipo}/${id}?error=${encodeURIComponent(error.message)}`);
+  if (!algunaFirmada) {
+    redirect(`/comprobantes/${tipo}/${id}?error=${encodeURIComponent("No se pudo guardar la firma.")}`);
   }
 
   revalidatePath(`/comprobantes/${tipo}/${id}`);
@@ -61,20 +85,29 @@ export async function agregarEvidenciaFotos(
     redirect(`/comprobantes/${tipo}/${id}?error=${encodeURIComponent("No tienes permiso para subir fotos.")}`);
   }
 
-  const fotos = formData.getAll("fotos");
+  let subidas: ArchivoSubido[];
   try {
-    const subidas = await subirArchivos(supabase, "documentos", `${tipo}s/${id}`, fotos);
+    const valor = JSON.parse(String(formData.get("fotos") ?? "[]"));
+    subidas = Array.isArray(valor) ? valor : [];
+  } catch {
+    subidas = [];
+  }
+
+  const ids = await idsDelGrupo(supabase, tipo, id);
+
+  try {
     if (subidas.length > 0) {
-      const { error } = await supabase.from("archivos_adjuntos").insert(
+      const filas = ids.flatMap((idMiembro) =>
         subidas.map((f) => ({
           entidad_tipo: tipo,
-          entidad_id: id,
+          entidad_id: idMiembro,
           tipo_documento: "foto" as const,
           storage_path: f.path,
           nombre_archivo: f.nombre,
           subido_por: usuario.id,
         }))
       );
+      const { error } = await supabase.from("archivos_adjuntos").insert(filas);
       if (error) throw error;
     }
   } catch {
@@ -82,15 +115,12 @@ export async function agregarEvidenciaFotos(
   }
 
   const tabla = tipo === "entrada" ? "entradas" : "salidas";
-  const { data: mov } = await supabase
-    .from(tabla)
-    .select("lotes(codigo_lote)")
-    .eq("id", id)
-    .single();
-  const codigoLote = (mov as unknown as { lotes: { codigo_lote: string } | null } | null)?.lotes
-    ?.codigo_lote;
+  const { data: movs } = await supabase.from(tabla).select("lotes(codigo_lote)").in("id", ids);
+  const codigosLote = (movs as unknown as { lotes: { codigo_lote: string } | null }[] | null)
+    ?.map((m) => m.lotes?.codigo_lote)
+    .filter((c): c is string => !!c);
 
   revalidatePath(`/comprobantes/${tipo}/${id}`);
-  if (codigoLote) revalidatePath(`/lotes/${codigoLote}`);
+  codigosLote?.forEach((codigo) => revalidatePath(`/lotes/${codigo}`));
   redirect(`/comprobantes/${tipo}/${id}?fotos=1`);
 }

@@ -1,23 +1,9 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { generarComprobante, type CampoComprobante } from "@/lib/reportes/comprobante";
-import { formatearFecha } from "@/lib/utils/dates";
-import type { FilaEntrada, FilaSalida } from "@/lib/reportes/columnas";
-import { formatearTarimas } from "@/lib/utils/tarimas";
-
-async function obtenerFirmaPng(url: string | null): Promise<Uint8Array | null> {
-  if (!url) return null;
-  try {
-    const resp = await fetch(url);
-    if (!resp.ok) return null;
-    return new Uint8Array(await resp.arrayBuffer());
-  } catch {
-    return null;
-  }
-}
+import { generarPdfMovimiento } from "@/lib/reportes/pdfMovimiento";
 
 export async function GET(
-  _request: NextRequest,
+  _request: Request,
   { params }: { params: Promise<{ tipo: string; id: string }> }
 ) {
   const { tipo, id } = await params;
@@ -26,146 +12,16 @@ export async function GET(
   }
 
   const supabase = await createClient();
+  const resultado = await generarPdfMovimiento(supabase, tipo, id);
 
-  if (tipo === "entrada") {
-    const { data: dataRaw } = await supabase
-      .from("entradas")
-      .select(
-        "*, clientes(nombre), productos(nombre, sku), lotes(codigo_lote), ubicaciones(codigo), recibio:recibio_usuario_id(nombre)"
-      )
-      .eq("id", id)
-      .single();
-
-    if (!dataRaw) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
-    const data = dataRaw as unknown as FilaEntrada;
-
-    const campos: CampoComprobante[] = [
-      { etiqueta: "Lote", valor: data.lotes?.codigo_lote ?? "—" },
-      { etiqueta: "SKU", valor: data.productos?.sku ?? "—" },
-      { etiqueta: "Piezas", valor: String(data.cantidad_piezas) },
-      { etiqueta: "Tarimas", valor: String(data.cantidad_tarimas) },
-      {
-        etiqueta: "Identificador de tarimas",
-        valor: data.tarima_desde != null ? `${data.tarima_desde}-${data.tarima_hasta}` : "—",
-      },
-      { etiqueta: "Ubicación", valor: data.ubicaciones?.codigo ?? "—" },
-      { etiqueta: "Presentación", valor: data.presentacion ?? "—" },
-      { etiqueta: "Cajas por pallet", valor: data.cajas_por_pallet != null ? String(data.cajas_por_pallet) : "—" },
-      { etiqueta: "Cantidad por caja", valor: data.cantidad_por_caja != null ? String(data.cantidad_por_caja) : "—" },
-      { etiqueta: "Categoría", valor: data.categoria_producto ?? "—" },
-      { etiqueta: "Lote 1", valor: data.lote_1 ?? "—" },
-      { etiqueta: "Lote 2 (SAP)", valor: data.lote_2 ?? "—" },
-      { etiqueta: "Contenedor", valor: data.numero_contenedor ?? "—" },
-      { etiqueta: "BL / Referencia", valor: data.numero_bl ?? "—" },
-      { etiqueta: "Peso (kg)", valor: data.peso_kg != null ? String(data.peso_kg) : "—" },
-      ...(data.tarimas_parciales && data.tarimas_parciales.length > 0
-        ? [
-            {
-              etiqueta: "Tarimas parciales",
-              valor: data.tarimas_parciales
-                .map((t) => `${t.numero_tarima != null ? `#${t.numero_tarima}` : "s/n"}: ${t.piezas} pz`)
-                .join(", "),
-            },
-          ]
-        : []),
-    ];
-
-    let pdf: Uint8Array;
-    try {
-      pdf = await generarComprobante({
-        tipo: "entrada",
-        folio: data.lotes?.codigo_lote ?? id.slice(0, 8),
-        fecha: formatearFecha(data.fecha),
-        hora: data.hora_carga_descarga?.slice(0, 5) ?? "—",
-        cliente: data.clientes?.nombre ?? "—",
-        producto: data.productos?.nombre ?? "—",
-        campos,
-        observaciones: data.observaciones,
-        nombreEntregaRecibe: data.recibio?.nombre ?? null,
-        firmaDigitalPng: await obtenerFirmaPng(data.firma_digital_url),
-      });
-    } catch {
-      return NextResponse.json({ error: "No se pudo generar el PDF de este comprobante" }, { status: 500 });
-    }
-
-    return new NextResponse(new Uint8Array(pdf), {
-      headers: {
-        "Content-Type": "application/pdf",
-        "Content-Disposition": `inline; filename="comprobante-entrada-${data.lotes?.codigo_lote ?? id.slice(0, 8)}.pdf"`,
-      },
-    });
+  if ("error" in resultado) {
+    return NextResponse.json({ error: resultado.error }, { status: resultado.status });
   }
 
-  const { data: dataRaw } = await supabase
-    .from("salidas")
-    .select(
-      "*, clientes(nombre), productos(nombre, sku), lotes(codigo_lote), ubicaciones(codigo), autorizo:autorizo_usuario_id(nombre)"
-    )
-    .eq("id", id)
-    .single();
-
-  if (!dataRaw) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
-  const data = dataRaw as unknown as FilaSalida;
-
-  const campos: CampoComprobante[] = [
-    { etiqueta: "Lote", valor: data.lotes?.codigo_lote ?? "—" },
-    { etiqueta: "SKU", valor: data.productos?.sku ?? "—" },
-    { etiqueta: "Piezas", valor: String(data.cantidad_piezas) },
-    { etiqueta: "Tarimas", valor: String(data.cantidad_tarimas) },
-    {
-      etiqueta: "Identificador de tarimas",
-      valor:
-        data.tarima_numeros && data.tarima_numeros.length > 0
-          ? formatearTarimas(data.tarima_numeros)
-          : data.tarima_desde != null
-            ? `${data.tarima_desde}-${data.tarima_hasta}`
-            : "—",
-    },
-    { etiqueta: "Ubicación", valor: data.ubicaciones?.codigo ?? "—" },
-    { etiqueta: "Destino", valor: data.destino ?? "—" },
-    { etiqueta: "Transportista", valor: data.transportista ?? "—" },
-    { etiqueta: "Placas / unidad", valor: data.placas ?? "—" },
-    { etiqueta: "Operador", valor: data.operador ?? "—" },
-    { etiqueta: "Presentación", valor: data.presentacion ?? "—" },
-    { etiqueta: "Cajas por pallet", valor: data.cajas_por_pallet != null ? String(data.cajas_por_pallet) : "—" },
-    { etiqueta: "Cantidad por caja", valor: data.cantidad_por_caja != null ? String(data.cantidad_por_caja) : "—" },
-    { etiqueta: "Categoría", valor: data.categoria_producto ?? "—" },
-    { etiqueta: "Lote 1", valor: data.lote_1 ?? "—" },
-    { etiqueta: "Lote 2 (SAP)", valor: data.lote_2 ?? "—" },
-    { etiqueta: "Contenedor", valor: data.numero_contenedor ?? "—" },
-    { etiqueta: "BL / Referencia", valor: data.numero_bl ?? "—" },
-    ...(data.piezas_tarima_parcial != null
-      ? [
-          {
-            etiqueta: "Tarima parcial",
-            valor: `${data.numero_tarima_parcial != null ? `tarima #${data.numero_tarima_parcial}: ` : ""}${data.piezas_tarima_parcial} pz`,
-          },
-        ]
-      : []),
-  ];
-
-  let pdf: Uint8Array;
-  try {
-    pdf = await generarComprobante({
-      tipo: "salida",
-      folio: data.lotes?.codigo_lote ?? id.slice(0, 8),
-      fecha: formatearFecha(data.fecha),
-      hora: data.hora_carga_descarga?.slice(0, 5) ?? "—",
-      cliente: data.clientes?.nombre ?? "—",
-      producto: data.productos?.nombre ?? "—",
-      campos,
-      observaciones: data.observaciones,
-      nombreEntregaRecibe: data.autorizo?.nombre ?? null,
-      firmaDigitalPng: await obtenerFirmaPng(data.firma_digital_url),
-    });
-  } catch {
-    return NextResponse.json({ error: "No se pudo generar el PDF de este comprobante" }, { status: 500 });
-  }
-
-  return new NextResponse(new Uint8Array(pdf), {
+  return new NextResponse(new Uint8Array(resultado.pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `inline; filename="comprobante-salida-${data.lotes?.codigo_lote ?? id.slice(0, 8)}.pdf"`,
+      "Content-Disposition": `inline; filename="${resultado.filename}"`,
     },
   });
 }
