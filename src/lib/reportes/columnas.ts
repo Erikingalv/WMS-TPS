@@ -1,6 +1,7 @@
 import type { Cliente, Entrada, Lote, Producto, Salida, Ubicacion, Usuario } from "@/lib/types/database";
 import { formatearFecha } from "@/lib/utils/dates";
 import { formatearTarimas } from "@/lib/utils/tarimas";
+import { formatearNumero } from "@/lib/utils/numeros";
 
 // Columnas seleccionables para Entradas/Salidas — mismos apartados que el
 // Excel de control que ya llevaba Erik, para que el reporte le sirva tal
@@ -28,15 +29,15 @@ export const COLUMNAS_ENTRADAS: Record<string, { label: string; ancho: number; v
   producto: { label: "Producto", ancho: 2.2, valor: (f) => f.productos?.nombre ?? "—" },
   sku: { label: "SKU", ancho: 1.3, valor: (f) => f.productos?.sku ?? "—" },
   presentacion: { label: "Presentación", ancho: 1.3, valor: (f) => f.presentacion ?? "—" },
-  piezas: { label: "Piezas", ancho: 1, valor: (f) => String(f.cantidad_piezas) },
-  tarimas: { label: "Tarimas", ancho: 1, valor: (f) => String(f.cantidad_tarimas) },
+  piezas: { label: "Piezas", ancho: 1, valor: (f) => formatearNumero(f.cantidad_piezas) },
+  tarimas: { label: "Tarimas", ancho: 1, valor: (f) => formatearNumero(f.cantidad_tarimas) },
   rango_tarimas: {
     label: "Identificador de tarimas",
     ancho: 1.4,
     valor: (f) => (f.tarima_desde != null ? `${f.tarima_desde}-${f.tarima_hasta}` : "—"),
   },
-  cajas_pallet: { label: "Cajas/pallet", ancho: 1, valor: (f) => (f.cajas_por_pallet != null ? String(f.cajas_por_pallet) : "—") },
-  cant_caja: { label: "Cant./caja", ancho: 1, valor: (f) => (f.cantidad_por_caja != null ? String(f.cantidad_por_caja) : "—") },
+  cajas_pallet: { label: "Cajas/pallet", ancho: 1, valor: (f) => (f.cajas_por_pallet != null ? formatearNumero(f.cajas_por_pallet) : "—") },
+  cant_caja: { label: "Cant./caja", ancho: 1, valor: (f) => (f.cantidad_por_caja != null ? formatearNumero(f.cantidad_por_caja) : "—") },
   categoria: { label: "Categoría", ancho: 1.6, valor: (f) => f.categoria_producto ?? "—" },
   lote: { label: "Lote", ancho: 1.6, valor: (f) => f.lotes?.codigo_lote ?? "—" },
   lote_1: { label: "Lote 1", ancho: 1.4, valor: (f) => f.lote_1 ?? "—" },
@@ -44,7 +45,7 @@ export const COLUMNAS_ENTRADAS: Record<string, { label: string; ancho: number; v
   contenedor: { label: "Contenedor", ancho: 1.5, valor: (f) => f.numero_contenedor ?? "—" },
   bl: { label: "BL/Referencia", ancho: 1.5, valor: (f) => f.numero_bl ?? "—" },
   ubicacion: { label: "Ubicación", ancho: 1.2, valor: (f) => f.ubicaciones?.codigo ?? "—" },
-  peso: { label: "Peso (kg)", ancho: 1, valor: (f) => (f.peso_kg != null ? String(f.peso_kg) : "—") },
+  peso: { label: "Peso (kg)", ancho: 1, valor: (f) => (f.peso_kg != null ? formatearNumero(f.peso_kg) : "—") },
   recibio: { label: "Recibió", ancho: 1.5, valor: (f) => f.recibio?.nombre ?? "—" },
   estado_lote: { label: "Estado", ancho: 1, valor: (f) => (f.lotes?.estado === "agotado" ? "Agotado" : "Activo") },
   observaciones: { label: "Observaciones", ancho: 2, valor: (f) => f.observaciones ?? "—" },
@@ -57,8 +58,8 @@ export const COLUMNAS_SALIDAS: Record<string, { label: string; ancho: number; va
   producto: { label: "Producto", ancho: 2.2, valor: (f) => f.productos?.nombre ?? "—" },
   sku: { label: "SKU", ancho: 1.3, valor: (f) => f.productos?.sku ?? "—" },
   presentacion: { label: "Presentación", ancho: 1.3, valor: (f) => f.presentacion ?? "—" },
-  piezas: { label: "Piezas", ancho: 1, valor: (f) => String(f.cantidad_piezas) },
-  tarimas: { label: "Tarimas", ancho: 1, valor: (f) => String(f.cantidad_tarimas) },
+  piezas: { label: "Piezas", ancho: 1, valor: (f) => formatearNumero(f.cantidad_piezas) },
+  tarimas: { label: "Tarimas", ancho: 1, valor: (f) => formatearNumero(f.cantidad_tarimas) },
   rango_tarimas: {
     label: "Identificador de tarimas",
     ancho: 1.4,
@@ -69,8 +70,8 @@ export const COLUMNAS_SALIDAS: Record<string, { label: string; ancho: number; va
           ? `${f.tarima_desde}-${f.tarima_hasta}`
           : "—",
   },
-  cajas_pallet: { label: "Cajas/pallet", ancho: 1, valor: (f) => (f.cajas_por_pallet != null ? String(f.cajas_por_pallet) : "—") },
-  cant_caja: { label: "Cant./caja", ancho: 1, valor: (f) => (f.cantidad_por_caja != null ? String(f.cantidad_por_caja) : "—") },
+  cajas_pallet: { label: "Cajas/pallet", ancho: 1, valor: (f) => (f.cajas_por_pallet != null ? formatearNumero(f.cajas_por_pallet) : "—") },
+  cant_caja: { label: "Cant./caja", ancho: 1, valor: (f) => (f.cantidad_por_caja != null ? formatearNumero(f.cantidad_por_caja) : "—") },
   categoria: { label: "Categoría", ancho: 1.6, valor: (f) => f.categoria_producto ?? "—" },
   lote: { label: "Lote", ancho: 1.6, valor: (f) => f.lotes?.codigo_lote ?? "—" },
   lote_1: { label: "Lote 1", ancho: 1.4, valor: (f) => f.lote_1 ?? "—" },
@@ -87,8 +88,10 @@ export const COLUMNAS_SALIDAS: Record<string, { label: string; ancho: number; va
   observaciones: { label: "Observaciones", ancho: 2, valor: (f) => f.observaciones ?? "—" },
 };
 
-export const DEFAULT_COLS_ENTRADAS = ["fecha", "hora", "cliente", "producto", "lote", "piezas", "tarimas", "ubicacion"];
-export const DEFAULT_COLS_SALIDAS = ["fecha", "hora", "cliente", "producto", "lote", "piezas", "tarimas", "destino"];
+// BL y SKU van por default: son la referencia principal para identificar
+// material (más que el código de lote interno del sistema).
+export const DEFAULT_COLS_ENTRADAS = ["fecha", "hora", "cliente", "producto", "sku", "lote", "bl", "piezas", "tarimas", "ubicacion"];
+export const DEFAULT_COLS_SALIDAS = ["fecha", "hora", "cliente", "producto", "sku", "lote", "bl", "piezas", "tarimas", "destino"];
 
 export const COLUMNAS_DISPONIBLES = {
   entradas: Object.fromEntries(Object.entries(COLUMNAS_ENTRADAS).map(([k, v]) => [k, v.label])),

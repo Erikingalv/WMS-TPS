@@ -17,6 +17,7 @@ import {
   DEFAULT_COLS_INVENTARIO,
 } from "@/lib/reportes/inventarioDetallado";
 import { formatearFecha, formatearFechaHora } from "@/lib/utils/dates";
+import { formatearNumero, formatearMoneda } from "@/lib/utils/numeros";
 
 type TipoReporte = "inventario" | "entradas" | "salidas" | "movimientos" | "ocupacion" | "cargos";
 
@@ -132,8 +133,8 @@ export async function GET(request: NextRequest) {
       mapaLotes.get(r.lote_id) ?? "—",
       mapaUbic.get(r.ubicacion_origen_id) ?? "—",
       mapaUbic.get(r.ubicacion_destino_id) ?? "—",
-      String(r.cantidad_piezas),
-      String(r.cantidad_tarimas),
+      formatearNumero(r.cantidad_piezas),
+      formatearNumero(r.cantidad_tarimas),
       r.motivo ?? "—",
     ]);
   }
@@ -157,7 +158,7 @@ export async function GET(request: NextRequest) {
     filas = (ubicaciones ?? []).map((u) => {
       const ocupado = ocupadoPorUbicacion.get(u.id) ?? 0;
       const pct = u.capacidad_max_tarimas > 0 ? Math.round((ocupado / u.capacidad_max_tarimas) * 100) : 0;
-      return [u.codigo, u.zona ?? "—", String(u.capacidad_max_tarimas), String(ocupado), `${pct}%`];
+      return [u.codigo, u.zona ?? "—", formatearNumero(u.capacidad_max_tarimas), formatearNumero(ocupado), `${pct}%`];
     });
   }
 
@@ -181,7 +182,6 @@ export async function GET(request: NextRequest) {
         { status: 400 }
       );
     }
-    const fmt = (n: number) => `$${n.toFixed(2)}`;
     // Ya viene ordenado de mayor a menor antigüedad (días con existencia).
     const lineas = await calcularCargosPeriodo(supabase, { desde, hasta, clienteId });
     filas = lineas.map((l) => [
@@ -189,13 +189,13 @@ export async function GET(request: NextRequest) {
       l.cliente,
       l.producto,
       l.sku,
-      String(l.dias_con_existencia),
-      fmt(l.costo_almacenaje),
-      String(l.tarimas_entrada),
-      fmt(l.costo_maniobra_entrada),
-      String(l.tarimas_salida),
-      fmt(l.costo_maniobra_salida),
-      fmt(l.costo_total),
+      formatearNumero(l.dias_con_existencia),
+      formatearMoneda(l.costo_almacenaje),
+      formatearNumero(l.tarimas_entrada),
+      formatearMoneda(l.costo_maniobra_entrada),
+      formatearNumero(l.tarimas_salida),
+      formatearMoneda(l.costo_maniobra_salida),
+      formatearMoneda(l.costo_total),
     ]);
     if (lineas.length > 0) {
       const suma = (f: (l: (typeof lineas)[number]) => number) => lineas.reduce((s, l) => s + f(l), 0);
@@ -205,12 +205,12 @@ export async function GET(request: NextRequest) {
         "",
         "",
         "",
-        fmt(suma((l) => l.costo_almacenaje)),
-        String(suma((l) => l.tarimas_entrada)),
-        fmt(suma((l) => l.costo_maniobra_entrada)),
-        String(suma((l) => l.tarimas_salida)),
-        fmt(suma((l) => l.costo_maniobra_salida)),
-        fmt(suma((l) => l.costo_total)),
+        formatearMoneda(suma((l) => l.costo_almacenaje)),
+        formatearNumero(suma((l) => l.tarimas_entrada)),
+        formatearMoneda(suma((l) => l.costo_maniobra_entrada)),
+        formatearNumero(suma((l) => l.tarimas_salida)),
+        formatearMoneda(suma((l) => l.costo_maniobra_salida)),
+        formatearMoneda(suma((l) => l.costo_total)),
       ]);
     }
   }

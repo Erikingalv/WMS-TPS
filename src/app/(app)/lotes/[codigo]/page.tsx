@@ -7,6 +7,7 @@ import { generarQrDataUrl } from "@/lib/qr";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { puedeCorregirMovimientos } from "@/lib/auth/permisos";
 import { diasDesde, formatearFecha, formatearFechaHora } from "@/lib/utils/dates";
+import { formatearNumero } from "@/lib/utils/numeros";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { AbrirComprobante } from "@/components/lotes/AbrirComprobante";
@@ -141,19 +142,19 @@ export default async function LoteDetallePage({
       tipo: "entrada" as const,
       id: e.id,
       fecha: e.fecha,
-      detalle: `Entrada de ${e.cantidad_piezas} pz / ${e.cantidad_tarimas} tar a ${mapaUbicaciones.get(e.ubicacion_id) ?? "?"}${detalleLogistico(e)}`,
+      detalle: `Entrada de ${formatearNumero(e.cantidad_piezas)} pz / ${formatearNumero(e.cantidad_tarimas)} tar a ${mapaUbicaciones.get(e.ubicacion_id) ?? "?"}${detalleLogistico(e)}`,
     })),
     ...(salidas ?? []).map((s) => ({
       tipo: "salida" as const,
       id: s.id,
       fecha: s.fecha,
-      detalle: `Salida de ${s.cantidad_piezas} pz / ${s.cantidad_tarimas} tar desde ${mapaUbicaciones.get(s.ubicacion_id) ?? "?"}${s.destino ? ` hacia ${s.destino}` : ""}${detalleLogistico(s)}`,
+      detalle: `Salida de ${formatearNumero(s.cantidad_piezas)} pz / ${formatearNumero(s.cantidad_tarimas)} tar desde ${mapaUbicaciones.get(s.ubicacion_id) ?? "?"}${s.destino ? ` hacia ${s.destino}` : ""}${detalleLogistico(s)}`,
     })),
     ...(movimientosInternos ?? []).map((m) => ({
       tipo: "movimiento" as const,
       id: m.id,
       fecha: m.created_at,
-      detalle: `Reubicación de ${m.cantidad_piezas} pz / ${m.cantidad_tarimas} tar: ${mapaUbicaciones.get(m.ubicacion_origen_id) ?? "?"} → ${mapaUbicaciones.get(m.ubicacion_destino_id) ?? "?"}`,
+      detalle: `Reubicación de ${formatearNumero(m.cantidad_piezas)} pz / ${formatearNumero(m.cantidad_tarimas)} tar: ${mapaUbicaciones.get(m.ubicacion_origen_id) ?? "?"} → ${mapaUbicaciones.get(m.ubicacion_destino_id) ?? "?"}`,
     })),
   ].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
 
@@ -199,7 +200,7 @@ export default async function LoteDetallePage({
                   >
                     <span className="font-mono text-ink">{u?.codigo ?? "—"}</span>
                     <span className="tabular-nums text-ink-soft">
-                      {ex.cantidad_piezas} pz · {ex.cantidad_tarimas} tar
+                      {formatearNumero(ex.cantidad_piezas)} pz · {formatearNumero(ex.cantidad_tarimas)} tar
                     </span>
                   </div>
                 );
@@ -321,7 +322,7 @@ export default async function LoteDetallePage({
               <div className="flex justify-between gap-3">
                 <dt className="text-ink-faint">Ingreso inicial</dt>
                 <dd className="tabular-nums text-ink">
-                  {lote.piezas_inicial} pz · {lote.tarimas_inicial} tar
+                  {formatearNumero(lote.piezas_inicial)} pz · {formatearNumero(lote.tarimas_inicial)} tar
                 </dd>
               </div>
               {lote.tarima_desde != null ? (
@@ -342,7 +343,7 @@ export default async function LoteDetallePage({
                   <dt className="text-ink-faint">Tarimas parciales</dt>
                   <dd className="text-right tabular-nums text-ink">
                     {lote.tarimas_parciales
-                      .map((t) => `${t.numero_tarima != null ? `#${t.numero_tarima}` : "s/n"}: ${t.piezas} pz`)
+                      .map((t) => `${t.numero_tarima != null ? `#${t.numero_tarima}` : "s/n"}: ${formatearNumero(t.piezas)} pz`)
                       .join(", ")}
                   </dd>
                 </div>

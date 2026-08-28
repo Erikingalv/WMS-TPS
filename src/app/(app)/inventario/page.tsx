@@ -3,6 +3,7 @@ import { Select } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { diasDesde } from "@/lib/utils/dates";
+import { formatearNumero } from "@/lib/utils/numeros";
 import type { Cliente, Lote, Producto, Ubicacion } from "@/lib/types/database";
 
 type FilaInventario = {
@@ -181,8 +182,8 @@ export default async function InventarioPage({
                   <td className="px-4 py-3 font-mono text-xs text-ink-soft">
                     {f.ubicaciones?.codigo ?? "—"}
                   </td>
-                  <td className="px-4 py-3 tabular-nums text-ink">{f.cantidad_piezas}</td>
-                  <td className="px-4 py-3 tabular-nums text-ink">{f.cantidad_tarimas}</td>
+                  <td className="px-4 py-3 tabular-nums text-ink">{formatearNumero(f.cantidad_piezas)}</td>
+                  <td className="px-4 py-3 tabular-nums text-ink">{formatearNumero(f.cantidad_tarimas)}</td>
                   <td className="px-4 py-3">
                     <Badge tone={tonoPorDias(dias)}>{dias}</Badge>
                   </td>

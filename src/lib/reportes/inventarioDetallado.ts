@@ -1,6 +1,7 @@
 import type { createClient } from "@/lib/supabase/server";
 import type { Cliente, Lote, Producto, TarimaParcial, Ubicacion, Usuario } from "@/lib/types/database";
 import { diasDesde, formatearFecha } from "@/lib/utils/dates";
+import { formatearNumero } from "@/lib/utils/numeros";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -312,7 +313,7 @@ export const COLUMNAS_INVENTARIO: Record<
   cliente: { label: "Cliente", ancho: 1.5, valor: (f) => f.cliente },
   producto: { label: "Producto", ancho: 2, valor: (f) => f.producto },
   presentacion: { label: "Presentación", ancho: 1.1, valor: (f) => f.presentacion ?? "—" },
-  piezas: { label: "Piezas", ancho: 0.9, valor: (f) => String(f.piezas) },
+  piezas: { label: "Piezas", ancho: 0.9, valor: (f) => formatearNumero(f.piezas) },
   cajas_pallet: { label: "Cajas/pallet", ancho: 0.9, valor: (f) => (f.cajas_por_pallet != null ? String(f.cajas_por_pallet) : "—") },
   cant_caja: { label: "Cant./caja", ancho: 0.9, valor: (f) => (f.cantidad_por_caja != null ? String(f.cantidad_por_caja) : "—") },
   categoria: { label: "Categoría", ancho: 1.3, valor: (f) => f.categoria_producto ?? "—" },

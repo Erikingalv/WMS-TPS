@@ -7,6 +7,7 @@ import {
 } from "@/lib/reportes/comprobante";
 import { formatearFecha } from "@/lib/utils/dates";
 import { formatearTarimas } from "@/lib/utils/tarimas";
+import { formatearNumero } from "@/lib/utils/numeros";
 import type { FilaEntrada, FilaSalida } from "@/lib/reportes/columnas";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -69,28 +70,28 @@ async function generarPdfIndividual(
     const campos: CampoComprobante[] = [
       { etiqueta: "Lote", valor: data.lotes?.codigo_lote ?? "—" },
       { etiqueta: "SKU", valor: data.productos?.sku ?? "—" },
-      { etiqueta: "Piezas", valor: String(data.cantidad_piezas) },
-      { etiqueta: "Tarimas", valor: String(data.cantidad_tarimas) },
+      { etiqueta: "Piezas", valor: formatearNumero(data.cantidad_piezas) },
+      { etiqueta: "Tarimas", valor: formatearNumero(data.cantidad_tarimas) },
       {
         etiqueta: "Identificador de tarimas",
         valor: data.tarima_desde != null ? `${data.tarima_desde}-${data.tarima_hasta}` : "—",
       },
       { etiqueta: "Ubicación", valor: data.ubicaciones?.codigo ?? "—" },
       { etiqueta: "Presentación", valor: data.presentacion ?? "—" },
-      { etiqueta: "Cajas por pallet", valor: data.cajas_por_pallet != null ? String(data.cajas_por_pallet) : "—" },
-      { etiqueta: "Cantidad por caja", valor: data.cantidad_por_caja != null ? String(data.cantidad_por_caja) : "—" },
+      { etiqueta: "Cajas por pallet", valor: data.cajas_por_pallet != null ? formatearNumero(data.cajas_por_pallet) : "—" },
+      { etiqueta: "Cantidad por caja", valor: data.cantidad_por_caja != null ? formatearNumero(data.cantidad_por_caja) : "—" },
       { etiqueta: "Categoría", valor: data.categoria_producto ?? "—" },
       { etiqueta: "Lote 1", valor: data.lote_1 ?? "—" },
       { etiqueta: "Lote 2 (SAP)", valor: data.lote_2 ?? "—" },
       { etiqueta: "Contenedor", valor: data.numero_contenedor ?? "—" },
       { etiqueta: "BL / Referencia", valor: data.numero_bl ?? "—" },
-      { etiqueta: "Peso (kg)", valor: data.peso_kg != null ? String(data.peso_kg) : "—" },
+      { etiqueta: "Peso (kg)", valor: data.peso_kg != null ? formatearNumero(data.peso_kg) : "—" },
       ...(data.tarimas_parciales && data.tarimas_parciales.length > 0
         ? [
             {
               etiqueta: "Tarimas parciales",
               valor: data.tarimas_parciales
-                .map((t) => `${t.numero_tarima != null ? `#${t.numero_tarima}` : "s/n"}: ${t.piezas} pz`)
+                .map((t) => `${t.numero_tarima != null ? `#${t.numero_tarima}` : "s/n"}: ${formatearNumero(t.piezas)} pz`)
                 .join(", "),
             },
           ]
@@ -130,8 +131,8 @@ async function generarPdfIndividual(
   const campos: CampoComprobante[] = [
     { etiqueta: "Lote", valor: data.lotes?.codigo_lote ?? "—" },
     { etiqueta: "SKU", valor: data.productos?.sku ?? "—" },
-    { etiqueta: "Piezas", valor: String(data.cantidad_piezas) },
-    { etiqueta: "Tarimas", valor: String(data.cantidad_tarimas) },
+    { etiqueta: "Piezas", valor: formatearNumero(data.cantidad_piezas) },
+    { etiqueta: "Tarimas", valor: formatearNumero(data.cantidad_tarimas) },
     {
       etiqueta: "Identificador de tarimas",
       valor:
@@ -147,8 +148,8 @@ async function generarPdfIndividual(
     { etiqueta: "Placas / unidad", valor: data.placas ?? "—" },
     { etiqueta: "Operador", valor: data.operador ?? "—" },
     { etiqueta: "Presentación", valor: data.presentacion ?? "—" },
-    { etiqueta: "Cajas por pallet", valor: data.cajas_por_pallet != null ? String(data.cajas_por_pallet) : "—" },
-    { etiqueta: "Cantidad por caja", valor: data.cantidad_por_caja != null ? String(data.cantidad_por_caja) : "—" },
+    { etiqueta: "Cajas por pallet", valor: data.cajas_por_pallet != null ? formatearNumero(data.cajas_por_pallet) : "—" },
+    { etiqueta: "Cantidad por caja", valor: data.cantidad_por_caja != null ? formatearNumero(data.cantidad_por_caja) : "—" },
     { etiqueta: "Categoría", valor: data.categoria_producto ?? "—" },
     { etiqueta: "Lote 1", valor: data.lote_1 ?? "—" },
     { etiqueta: "Lote 2 (SAP)", valor: data.lote_2 ?? "—" },
@@ -158,7 +159,7 @@ async function generarPdfIndividual(
       ? [
           {
             etiqueta: "Tarima parcial",
-            valor: `${data.numero_tarima_parcial != null ? `tarima #${data.numero_tarima_parcial}: ` : ""}${data.piezas_tarima_parcial} pz`,
+            valor: `${data.numero_tarima_parcial != null ? `tarima #${data.numero_tarima_parcial}: ` : ""}${formatearNumero(data.piezas_tarima_parcial)} pz`,
           },
         ]
       : []),
@@ -195,7 +196,7 @@ async function generarPdfConsolidado(
     .select(
       tipo === "entrada"
         ? "id, fecha, hora_carga_descarga, cantidad_piezas, cantidad_tarimas, numero_contenedor, numero_bl, observaciones, firma_digital_url, clientes(nombre), productos(nombre, sku), lotes(codigo_lote), ubicaciones(codigo), recibio:recibio_usuario_id(nombre)"
-        : "id, fecha, hora_carga_descarga, cantidad_piezas, cantidad_tarimas, destino, transportista, placas, operador, observaciones, firma_digital_url, clientes(nombre), productos(nombre, sku), lotes(codigo_lote), ubicaciones(codigo), autorizo:autorizo_usuario_id(nombre)"
+        : "id, fecha, hora_carga_descarga, cantidad_piezas, cantidad_tarimas, destino, transportista, placas, operador, numero_bl, observaciones, firma_digital_url, clientes(nombre), productos(nombre, sku), lotes(codigo_lote), ubicaciones(codigo), autorizo:autorizo_usuario_id(nombre)"
     )
     .in("id", ids);
 
@@ -243,6 +244,7 @@ async function generarPdfConsolidado(
           { etiqueta: "Transportista", valor: primera.transportista ?? "—" },
           { etiqueta: "Placas / unidad", valor: primera.placas ?? "—" },
           { etiqueta: "Operador", valor: primera.operador ?? "—" },
+          { etiqueta: "BL / Referencia", valor: primera.numero_bl ?? "—" },
         ];
 
   const lineas: LineaConsolidado[] = filas.map((f) => ({
@@ -250,6 +252,7 @@ async function generarPdfConsolidado(
     cliente: f.clientes?.nombre ?? "—",
     producto: f.productos?.nombre ?? "—",
     sku: f.productos?.sku ?? "—",
+    bl: f.numero_bl ?? "—",
     piezas: f.cantidad_piezas,
     tarimas: f.cantidad_tarimas,
     ubicacion: f.ubicaciones?.codigo ?? "—",

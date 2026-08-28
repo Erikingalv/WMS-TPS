@@ -6,6 +6,7 @@ import { PUEDE_EDITAR_CLIENTES, tienePermiso } from "@/lib/auth/permisos";
 import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/Button";
 import { formatearFecha, formatearFechaHora } from "@/lib/utils/dates";
+import { formatearNumero } from "@/lib/utils/numeros";
 import type { Cliente, Producto, Lote, Ubicacion } from "@/lib/types/database";
 
 type EntradaFila = {
@@ -14,8 +15,9 @@ type EntradaFila = {
   fecha: string;
   cantidad_piezas: number;
   cantidad_tarimas: number;
+  numero_bl: string | null;
   clientes: Pick<Cliente, "nombre"> | null;
-  productos: Pick<Producto, "nombre"> | null;
+  productos: Pick<Producto, "nombre" | "sku"> | null;
   lotes: Pick<Lote, "codigo_lote"> | null;
   ubicaciones: Pick<Ubicacion, "codigo"> | null;
 };
@@ -25,7 +27,9 @@ type GrupoEntrada = {
   fecha: string;
   clientes: string;
   productos: string;
+  skuTexto: string;
   lotesTexto: string;
+  blTexto: string;
   cantidad_piezas: number;
   cantidad_tarimas: number;
   ubicaciones: string;
@@ -54,10 +58,12 @@ function agruparPorMovimiento(entradas: EntradaFila[]): GrupoEntrada[] {
         lineas.length === 1
           ? (primera.productos?.nombre ?? "—")
           : `${lineas.length} productos`,
+      skuTexto: lineas.length === 1 ? (primera.productos?.sku ?? "—") : unicos(lineas.map((l) => l.productos?.sku)).join(", ") || "—",
       lotesTexto:
         lineas.length === 1
           ? (primera.lotes?.codigo_lote ?? "—")
           : `${lineas.length} lotes`,
+      blTexto: unicos(lineas.map((l) => l.numero_bl ?? undefined)).join(", ") || "—",
       cantidad_piezas: lineas.reduce((s, l) => s + l.cantidad_piezas, 0),
       cantidad_tarimas: lineas.reduce((s, l) => s + l.cantidad_tarimas, 0),
       ubicaciones: unicos(lineas.map((l) => l.ubicaciones?.codigo)).join(", ") || "—",
@@ -80,7 +86,7 @@ export default async function EntradasPage({
   let query = supabase
     .from("entradas")
     .select(
-      "id, grupo_id, fecha, cantidad_piezas, cantidad_tarimas, clientes(nombre), productos(nombre), lotes(codigo_lote), ubicaciones(codigo)"
+      "id, grupo_id, fecha, cantidad_piezas, cantidad_tarimas, numero_bl, clientes(nombre), productos(nombre, sku), lotes(codigo_lote), ubicaciones(codigo)"
     )
     .order("fecha", { ascending: false });
   if (desde) query = query.gte("fecha", desde);
@@ -116,13 +122,15 @@ export default async function EntradasPage({
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-line bg-paper-raised">
-        <table className="w-full min-w-[760px] text-sm">
+        <table className="w-full min-w-[920px] text-sm">
           <thead>
             <tr className="border-b border-line text-left text-xs font-semibold uppercase tracking-wide text-ink-faint">
               <th className="px-4 py-3">Fecha</th>
               <th className="px-4 py-3">Cliente</th>
               <th className="px-4 py-3">Producto</th>
+              <th className="px-4 py-3">SKU</th>
               <th className="px-4 py-3">Lote</th>
+              <th className="px-4 py-3">BL</th>
               <th className="px-4 py-3">Cantidad</th>
               <th className="px-4 py-3">Ubicación</th>
             </tr>
@@ -138,6 +146,7 @@ export default async function EntradasPage({
                     {m.numProductos > 1 && <Badge tone="info">consolidado</Badge>}
                   </span>
                 </td>
+                <td className="px-4 py-3 font-mono text-xs text-ink-soft">{m.skuTexto}</td>
                 <td className="px-4 py-3">
                   <a
                     href={`/comprobantes/entrada/${m.id}`}
@@ -146,15 +155,16 @@ export default async function EntradasPage({
                     {m.lotesTexto}
                   </a>
                 </td>
+                <td className="px-4 py-3 font-mono text-xs text-ink-soft">{m.blTexto}</td>
                 <td className="px-4 py-3 tabular-nums text-ink-soft">
-                  {m.cantidad_piezas} pz · {m.cantidad_tarimas} tar
+                  {formatearNumero(m.cantidad_piezas)} pz · {formatearNumero(m.cantidad_tarimas)} tar
                 </td>
                 <td className="px-4 py-3 font-mono text-xs text-ink-soft">{m.ubicaciones}</td>
               </tr>
             ))}
             {movimientos.length === 0 && (
               <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-ink-faint">
+                <td colSpan={8} className="px-4 py-10 text-center text-ink-faint">
                   Aún no hay entradas registradas.
                 </td>
               </tr>

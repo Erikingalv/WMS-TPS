@@ -3,6 +3,7 @@ import { FileSignature, PenLine } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/Badge";
 import { formatearFechaHora } from "@/lib/utils/dates";
+import { formatearNumero } from "@/lib/utils/numeros";
 import type { Cliente, Lote, Producto } from "@/lib/types/database";
 
 type FilaRaw = {
@@ -16,6 +17,7 @@ type FilaRaw = {
   cliente: string;
   producto: string;
   codigo_lote: string;
+  numero_bl: string | null;
 };
 
 type FilaComprobante = {
@@ -28,11 +30,12 @@ type FilaComprobante = {
   cliente: string;
   producto: string;
   codigo_lote: string;
+  blTexto: string;
   numProductos: number;
 };
 
-function unicos(valores: string[]): string[] {
-  return Array.from(new Set(valores.filter(Boolean)));
+function unicos(valores: (string | null | undefined)[]): string[] {
+  return Array.from(new Set(valores.filter((v): v is string => !!v)));
 }
 
 function agruparPorMovimiento(filas: FilaRaw[]): FilaComprobante[] {
@@ -56,6 +59,7 @@ function agruparPorMovimiento(filas: FilaRaw[]): FilaComprobante[] {
       cliente: unicos(lineas.map((l) => l.cliente)).join(", ") || "—",
       producto: lineas.length === 1 ? primera.producto : `${lineas.length} productos`,
       codigo_lote: lineas.length === 1 ? primera.codigo_lote : `${lineas.length} lotes`,
+      blTexto: unicos(lineas.map((l) => l.numero_bl)).join(", ") || "—",
       numProductos: lineas.length,
     };
   });
@@ -76,6 +80,7 @@ export default async function ComprobantesPage({
     cantidad_piezas: number;
     cantidad_tarimas: number;
     firma_digital_url: string | null;
+    numero_bl: string | null;
     clientes: Pick<Cliente, "nombre"> | null;
     productos: Pick<Producto, "nombre"> | null;
     lotes: Pick<Lote, "codigo_lote"> | null;
@@ -87,7 +92,7 @@ export default async function ComprobantesPage({
       : supabase
           .from("entradas")
           .select(
-            "id, grupo_id, fecha, cantidad_piezas, cantidad_tarimas, firma_digital_url, clientes(nombre), productos(nombre), lotes(codigo_lote)"
+            "id, grupo_id, fecha, cantidad_piezas, cantidad_tarimas, firma_digital_url, numero_bl, clientes(nombre), productos(nombre), lotes(codigo_lote)"
           )
           .order("fecha", { ascending: false })
           .limit(300),
@@ -96,7 +101,7 @@ export default async function ComprobantesPage({
       : supabase
           .from("salidas")
           .select(
-            "id, grupo_id, fecha, cantidad_piezas, cantidad_tarimas, firma_digital_url, clientes(nombre), productos(nombre), lotes(codigo_lote)"
+            "id, grupo_id, fecha, cantidad_piezas, cantidad_tarimas, firma_digital_url, numero_bl, clientes(nombre), productos(nombre), lotes(codigo_lote)"
           )
           .order("fecha", { ascending: false })
           .limit(300),
@@ -114,6 +119,7 @@ export default async function ComprobantesPage({
       cliente: e.clientes?.nombre ?? "—",
       producto: e.productos?.nombre ?? "—",
       codigo_lote: e.lotes?.codigo_lote ?? "—",
+      numero_bl: e.numero_bl,
     })),
     ...((salidas ?? []) as unknown as Raw[]).map((s) => ({
       tipo: "salida" as const,
@@ -126,6 +132,7 @@ export default async function ComprobantesPage({
       cliente: s.clientes?.nombre ?? "—",
       producto: s.productos?.nombre ?? "—",
       codigo_lote: s.lotes?.codigo_lote ?? "—",
+      numero_bl: s.numero_bl,
     })),
   ];
 
@@ -204,7 +211,8 @@ export default async function ComprobantesPage({
             <div className="min-w-0 flex-1">
               <p className="text-sm text-ink">
                 {f.cliente} · {f.producto} ·{" "}
-                <span className="font-mono text-xs text-ink-soft">{f.codigo_lote}</span>
+                <span className="font-mono text-xs text-ink-soft">{f.codigo_lote}</span> ·{" "}
+                <span className="font-mono text-xs text-ink-soft">BL {f.blTexto}</span>
                 {f.numProductos > 1 && (
                   <>
                     {" "}
@@ -213,7 +221,7 @@ export default async function ComprobantesPage({
                 )}
               </p>
               <p className="text-xs text-ink-faint">
-                {formatearFechaHora(f.fecha)} · {f.cantidad_piezas} pz / {f.cantidad_tarimas} tar
+                {formatearFechaHora(f.fecha)} · {formatearNumero(f.cantidad_piezas)} pz / {formatearNumero(f.cantidad_tarimas)} tar
               </p>
             </div>
             {f.firmado ? (

@@ -6,6 +6,7 @@ import { urlPublica } from "@/lib/supabase/storage";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { puedeCorregirMovimientos, PUEDE_SUBIR_EVIDENCIA, tienePermiso } from "@/lib/auth/permisos";
 import { formatearFecha } from "@/lib/utils/dates";
+import { formatearNumero } from "@/lib/utils/numeros";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { SubmitButton, ButtonLink } from "@/components/ui/Button";
@@ -21,6 +22,7 @@ type LineaGrupo = {
   id: string;
   cantidad_piezas: number;
   cantidad_tarimas: number;
+  numero_bl: string | null;
   clientes: { nombre: string } | null;
   productos: { nombre: string; sku: string } | null;
   lotes: { codigo_lote: string } | null;
@@ -75,7 +77,7 @@ export default async function ComprobanteDetallePage({
   if (esGrupo) {
     const { data: filasRaw } = await supabase
       .from(tabla)
-      .select("id, cantidad_piezas, cantidad_tarimas, clientes(nombre), productos(nombre, sku), lotes(codigo_lote), ubicaciones(codigo)")
+      .select("id, cantidad_piezas, cantidad_tarimas, numero_bl, clientes(nombre), productos(nombre, sku), lotes(codigo_lote), ubicaciones(codigo)")
       .in("id", idsGrupo);
     lineasGrupo = (filasRaw ?? []) as unknown as LineaGrupo[];
   }
@@ -155,8 +157,8 @@ export default async function ComprobanteDetallePage({
                 <Campo etiqueta="Producto" valor={data.productos?.nombre ?? "—"} />
                 <Campo etiqueta="SKU" valor={data.productos?.sku ?? "—"} />
                 <Campo etiqueta="Ubicación" valor={data.ubicaciones?.codigo ?? "—"} />
-                <Campo etiqueta="Piezas" valor={String(data.cantidad_piezas)} />
-                <Campo etiqueta="Tarimas" valor={String(data.cantidad_tarimas)} />
+                <Campo etiqueta="Piezas" valor={formatearNumero(data.cantidad_piezas)} />
+                <Campo etiqueta="Tarimas" valor={formatearNumero(data.cantidad_tarimas)} />
               </>
             )}
             {!esGrupo &&
@@ -175,11 +177,11 @@ export default async function ComprobanteDetallePage({
                 <Campo etiqueta="Presentación" valor={data.presentacion ?? "—"} />
                 <Campo
                   etiqueta="Cajas por pallet"
-                  valor={data.cajas_por_pallet != null ? String(data.cajas_por_pallet) : "—"}
+                  valor={data.cajas_por_pallet != null ? formatearNumero(data.cajas_por_pallet) : "—"}
                 />
                 <Campo
                   etiqueta="Cantidad por caja"
-                  valor={data.cantidad_por_caja != null ? String(data.cantidad_por_caja) : "—"}
+                  valor={data.cantidad_por_caja != null ? formatearNumero(data.cantidad_por_caja) : "—"}
                 />
                 <Campo etiqueta="Categoría" valor={data.categoria_producto ?? "—"} />
                 <Campo etiqueta="Lote 1" valor={data.lote_1 ?? "—"} />
@@ -191,7 +193,7 @@ export default async function ComprobanteDetallePage({
                 <Campo etiqueta="Contenedor" valor={data.numero_contenedor ?? "—"} />
                 <Campo etiqueta="BL / Referencia" valor={data.numero_bl ?? "—"} />
                 {!esGrupo && "peso_kg" in data && (
-                  <Campo etiqueta="Peso (kg)" valor={data.peso_kg != null ? String(data.peso_kg) : "—"} />
+                  <Campo etiqueta="Peso (kg)" valor={data.peso_kg != null ? formatearNumero(data.peso_kg) : "—"} />
                 )}
               </>
             )}
@@ -201,10 +203,11 @@ export default async function ComprobanteDetallePage({
                 <Campo etiqueta="Transportista" valor={data.transportista ?? "—"} />
                 <Campo etiqueta="Placas / unidad" valor={data.placas ?? "—"} />
                 <Campo etiqueta="Operador" valor={data.operador ?? "—"} />
+                <Campo etiqueta="BL / Referencia" valor={data.numero_bl ?? "—"} />
                 {!esGrupo && data.piezas_tarima_parcial != null && (
                   <Campo
                     etiqueta="Tarima parcial"
-                    valor={`${data.numero_tarima_parcial != null ? `tarima #${data.numero_tarima_parcial}: ` : ""}${data.piezas_tarima_parcial} pz`}
+                    valor={`${data.numero_tarima_parcial != null ? `tarima #${data.numero_tarima_parcial}: ` : ""}${formatearNumero(data.piezas_tarima_parcial)} pz`}
                   />
                 )}
               </>
@@ -214,7 +217,7 @@ export default async function ComprobanteDetallePage({
                 <Campo
                   etiqueta="Tarimas parciales"
                   valor={data.tarimas_parciales
-                    .map((t) => `${t.numero_tarima != null ? `#${t.numero_tarima}` : "s/n"}: ${t.piezas} pz`)
+                    .map((t) => `${t.numero_tarima != null ? `#${t.numero_tarima}` : "s/n"}: ${formatearNumero(t.piezas)} pz`)
                     .join(", ")}
                 />
               </div>
@@ -238,6 +241,7 @@ export default async function ComprobanteDetallePage({
                       <th className="px-3 py-2">Lote</th>
                       <th className="px-3 py-2">Cliente</th>
                       <th className="px-3 py-2">Producto</th>
+                      <th className="px-3 py-2">BL</th>
                       <th className="px-3 py-2">Piezas</th>
                       <th className="px-3 py-2">Tarimas</th>
                       <th className="px-3 py-2">Ubicación</th>
@@ -255,8 +259,9 @@ export default async function ComprobanteDetallePage({
                           {l.productos?.nombre ?? "—"}{" "}
                           <span className="font-mono text-xs text-ink-faint">{l.productos?.sku}</span>
                         </td>
-                        <td className="px-3 py-2 tabular-nums text-ink">{l.cantidad_piezas}</td>
-                        <td className="px-3 py-2 tabular-nums text-ink">{l.cantidad_tarimas}</td>
+                        <td className="px-3 py-2 font-mono text-xs text-ink-soft">{l.numero_bl ?? "—"}</td>
+                        <td className="px-3 py-2 tabular-nums text-ink">{formatearNumero(l.cantidad_piezas)}</td>
+                        <td className="px-3 py-2 tabular-nums text-ink">{formatearNumero(l.cantidad_tarimas)}</td>
                         <td className="px-3 py-2 font-mono text-xs text-ink-soft">
                           {l.ubicaciones?.codigo ?? "—"}
                         </td>

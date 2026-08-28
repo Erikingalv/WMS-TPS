@@ -5,6 +5,7 @@ import { PUEDE_EDITAR_CLIENTES, tienePermiso } from "@/lib/auth/permisos";
 import { ButtonLink, Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
 import { formatearFechaHora } from "@/lib/utils/dates";
+import { formatearNumero } from "@/lib/utils/numeros";
 import { liberarReserva } from "@/app/(app)/reservas/actions";
 import type { Cliente, Lote, Producto, Ubicacion, Usuario } from "@/lib/types/database";
 
@@ -87,7 +88,7 @@ export default async function ReservasPage() {
                     {r.ubicaciones?.codigo ?? "—"}
                   </td>
                   <td className="px-4 py-3 tabular-nums text-ink-soft">
-                    {r.cantidad_piezas} pz · {r.cantidad_tarimas} tar
+                    {formatearNumero(r.cantidad_piezas)} pz · {formatearNumero(r.cantidad_tarimas)} tar
                   </td>
                   <td className="px-4 py-3 text-ink-soft">
                     {r.usuarios?.nombre ?? "—"}

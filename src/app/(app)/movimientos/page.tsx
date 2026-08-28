@@ -4,6 +4,7 @@ import { getUsuarioActual } from "@/lib/auth/session";
 import { PUEDE_EDITAR_CLIENTES, tienePermiso } from "@/lib/auth/permisos";
 import { ButtonLink } from "@/components/ui/Button";
 import { formatearFechaHora } from "@/lib/utils/dates";
+import { formatearNumero } from "@/lib/utils/numeros";
 import type { Lote, Ubicacion } from "@/lib/types/database";
 
 type MovimientoFila = {
@@ -95,7 +96,7 @@ export default async function MovimientosPage() {
                 <td className="px-4 py-3 font-mono text-xs text-ink-soft">{m.origen?.codigo ?? "—"}</td>
                 <td className="px-4 py-3 font-mono text-xs text-ink-soft">{m.destino?.codigo ?? "—"}</td>
                 <td className="px-4 py-3 tabular-nums text-ink-soft">
-                  {m.cantidad_piezas} pz · {m.cantidad_tarimas} tar
+                  {formatearNumero(m.cantidad_piezas)} pz · {formatearNumero(m.cantidad_tarimas)} tar
                 </td>
               </tr>
             ))}

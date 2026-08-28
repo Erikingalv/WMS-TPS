@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { ButtonLink } from "@/components/ui/Button";
 import { CompartirComprobante } from "@/components/comprobantes/CompartirComprobante";
+import { formatearNumero } from "@/lib/utils/numeros";
 import type { Cliente, Producto } from "@/lib/types/database";
 
 type FilaResumen = {
@@ -97,7 +98,7 @@ export default async function RegistroMultipleSalidasPage({
                   <span className="font-mono text-xs text-ink-faint">({s.productos?.sku})</span>
                 </p>
                 <p className="text-xs text-ink-faint">
-                  {s.cantidad_piezas} pz · {s.cantidad_tarimas} tar · lote{" "}
+                  {formatearNumero(s.cantidad_piezas)} pz · {formatearNumero(s.cantidad_tarimas)} tar · lote{" "}
                   <span className="font-mono">{s.lotes?.codigo_lote ?? "—"}</span>
                 </p>
               </div>
