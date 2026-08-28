@@ -28,6 +28,10 @@ export type LineaSalida = {
   numero_bl: string;
 };
 
+// Sentinel para el BL de existencias sin BL capturado — así siguen siendo
+// alcanzables en el selector en vez de quedar invisibles.
+const SIN_BL = "__sin_bl__";
+
 export function lineaSalidaVacia(): LineaSalida {
   return {
     cliente_id: "",
@@ -70,50 +74,57 @@ export function SalidaLineaCard({
   onQuitar: () => void;
   puedeQuitar: boolean;
 }) {
-  const [busquedaProducto, setBusquedaProducto] = useState("");
+  // Un cliente puede tener muchos modelos — elegir primero el BL del
+  // embarque acota Producto (y después Lote) a solo lo que de verdad
+  // llegó/salió bajo esa referencia, en vez de tener que buscarlo entre
+  // todo el catálogo del cliente.
+  const [blSeleccionado, setBlSeleccionado] = useState("");
 
   const productosDelCliente = useMemo(
     () => productos.filter((p) => p.cliente_id === linea.cliente_id),
     [productos, linea.cliente_id]
   );
+  const idsProductosCliente = useMemo(
+    () => new Set(productosDelCliente.map((p) => p.id)),
+    [productosDelCliente]
+  );
 
-  // BL de cada producto (puede tener varios, uno por lote/embarque) — para
-  // que buscar por BL encuentre el producto correspondiente, no solo el SKU.
-  const blsPorProducto = useMemo(() => {
-    const mapa = new Map<string, Set<string>>();
+  const blsDelCliente = useMemo(() => {
+    const set = new Set<string>();
+    let haySinBl = false;
     existencias.forEach((e) => {
-      if (!e.numero_bl) return;
-      const set = mapa.get(e.producto_id) ?? new Set<string>();
-      set.add(e.numero_bl);
-      mapa.set(e.producto_id, set);
+      if (!idsProductosCliente.has(e.producto_id)) return;
+      if (e.numero_bl) set.add(e.numero_bl);
+      else haySinBl = true;
     });
-    return mapa;
-  }, [existencias]);
+    const lista = [...set].sort((a, b) => a.localeCompare(b));
+    return haySinBl ? [...lista, SIN_BL] : lista;
+  }, [existencias, idsProductosCliente]);
 
-  const productosFiltrados = useMemo(() => {
-    const q = busquedaProducto.trim().toLowerCase();
-    if (!q) return productosDelCliente;
-    const filtrados = productosDelCliente.filter((p) => {
-      if (p.sku.toLowerCase().includes(q)) return true;
-      if (p.nombre.toLowerCase().includes(q)) return true;
-      const bls = blsPorProducto.get(p.id);
-      return bls ? [...bls].some((bl) => bl.toLowerCase().includes(q)) : false;
-    });
-    // Si ya había un producto elegido y la nueva búsqueda lo deja fuera, se
-    // mantiene visible en la lista — que no desaparezca lo ya seleccionado.
-    if (linea.producto_id && !filtrados.some((p) => p.id === linea.producto_id)) {
-      const actual = productosDelCliente.find((p) => p.id === linea.producto_id);
-      if (actual) return [actual, ...filtrados];
-    }
-    return filtrados;
-  }, [productosDelCliente, busquedaProducto, blsPorProducto, linea.producto_id]);
+  const productosDelBl = useMemo(() => {
+    if (!blSeleccionado) return [];
+    const ids = new Set(
+      existencias
+        .filter(
+          (e) =>
+            idsProductosCliente.has(e.producto_id) &&
+            (blSeleccionado === SIN_BL ? !e.numero_bl : e.numero_bl === blSeleccionado)
+        )
+        .map((e) => e.producto_id)
+    );
+    return productosDelCliente.filter((p) => ids.has(p.id));
+  }, [existencias, idsProductosCliente, productosDelCliente, blSeleccionado]);
 
   const existenciasDelProducto = useMemo(
     () =>
       existencias
-        .filter((e) => e.producto_id === linea.producto_id)
+        .filter(
+          (e) =>
+            e.producto_id === linea.producto_id &&
+            (blSeleccionado === SIN_BL ? !e.numero_bl : e.numero_bl === blSeleccionado)
+        )
         .sort((a, b) => new Date(a.fecha_ingreso).getTime() - new Date(b.fecha_ingreso).getTime()),
-    [existencias, linea.producto_id]
+    [existencias, linea.producto_id, blSeleccionado]
   );
 
   const seleccionada = existenciasDelProducto.find((e) => `${e.lote_id}:${e.ubicacion_id}` === linea.combo);
@@ -151,14 +162,14 @@ export function SalidaLineaCard({
         )}
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2">
+      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
         <Select
           id={`cliente-${indice}`}
           label="Cliente"
           required
           value={linea.cliente_id}
           onChange={(e) => {
-            setBusquedaProducto("");
+            setBlSeleccionado("");
             onChange({ cliente_id: e.target.value, producto_id: "", combo: "", lote_id: "", ubicacion_id: "" });
           }}
         >
@@ -173,38 +184,50 @@ export function SalidaLineaCard({
         </Select>
 
         <Select
+          id={`bl-filtro-${indice}`}
+          label="BL"
+          required
+          disabled={!linea.cliente_id}
+          value={blSeleccionado}
+          onChange={(e) => {
+            setBlSeleccionado(e.target.value);
+            onChange({ producto_id: "", combo: "", lote_id: "", ubicacion_id: "" });
+          }}
+          hint={
+            linea.cliente_id && blsDelCliente.length === 0
+              ? "Este cliente no tiene existencia capturada"
+              : undefined
+          }
+        >
+          <option value="" disabled>
+            {linea.cliente_id ? "Selecciona el BL" : "Primero elige un cliente"}
+          </option>
+          {blsDelCliente.map((bl) => (
+            <option key={bl} value={bl}>
+              {bl === SIN_BL ? "Sin BL / no capturado" : bl}
+            </option>
+          ))}
+        </Select>
+
+        <Select
           id={`producto-${indice}`}
           label="Producto"
           required
-          disabled={!linea.cliente_id}
+          disabled={!blSeleccionado}
           value={linea.producto_id}
           onChange={(e) => onChange({ producto_id: e.target.value, combo: "", lote_id: "", ubicacion_id: "" })}
+          hint={blSeleccionado ? `${productosDelBl.length} modelo(s) bajo este BL` : undefined}
         >
           <option value="" disabled>
-            {linea.cliente_id ? "Selecciona un producto" : "Primero elige un cliente"}
+            {blSeleccionado ? "Selecciona un producto" : "Primero elige el BL"}
           </option>
-          {productosFiltrados.map((p) => (
+          {productosDelBl.map((p) => (
             <option key={p.id} value={p.id}>
               {p.nombre} ({p.sku})
             </option>
           ))}
         </Select>
       </div>
-
-      {linea.cliente_id && (
-        <Input
-          id={`buscar-producto-${indice}`}
-          label="Buscar por BL o SKU"
-          placeholder="Ej. 4910… o YRB-NTMG-Z-50"
-          hint={
-            productosDelCliente.length > 0
-              ? `${productosFiltrados.length} de ${productosDelCliente.length} modelos de este cliente`
-              : "Este cliente no tiene productos capturados"
-          }
-          value={busquedaProducto}
-          onChange={(e) => setBusquedaProducto(e.target.value)}
-        />
-      )}
 
       <Select
         id={`lote-${indice}`}
