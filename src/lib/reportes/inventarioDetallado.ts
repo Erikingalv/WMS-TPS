@@ -241,11 +241,29 @@ export async function obtenerInventarioDetallado(
     let disponibles: Slot[];
     if (usaFisico) {
       const salidos = new Set<number>();
+      let tarimasSinNumeroCapturado = 0;
       for (const s of salidasPorLote.get(e.lote_id) ?? []) {
         const numeros = s.tarima_numeros && s.tarima_numeros.length > 0 ? s.tarima_numeros : rangoANumeros(s.tarima_desde, s.tarima_hasta);
-        numeros.forEach((n) => salidos.add(n));
+        if (numeros.length > 0) {
+          numeros.forEach((n) => salidos.add(n));
+        } else {
+          // La salida no capturó qué tarima física salió, solo la cantidad
+          // (el capturista no tecleó números) — no hay forma de saber cuál
+          // se fue exactamente, así que se descuentan las últimas
+          // posiciones que sigan disponibles (mismo criterio que usa
+          // construirSlots para las excepciones de entrada sin número: la
+          // "cola" es la que absorbe la incertidumbre). Sin este ajuste,
+          // esas tarimas se quedaban marcadas como disponibles para
+          // siempre y el faltante se le cargaba de golpe a una sola
+          // tarima cualquiera al cuadrar el total.
+          tarimasSinNumeroCapturado += s.cantidad_tarimas;
+        }
       }
-      disponibles = slots.filter((s) => s.numero_tarima == null || !salidos.has(s.numero_tarima));
+      let restantes = slots.filter((s) => s.numero_tarima == null || !salidos.has(s.numero_tarima));
+      if (tarimasSinNumeroCapturado > 0) {
+        restantes = restantes.slice(0, Math.max(0, restantes.length - tarimasSinNumeroCapturado));
+      }
+      disponibles = restantes;
     } else {
       const totalSalido = (salidasPorLote.get(e.lote_id) ?? []).reduce((s, sal) => s + sal.cantidad_tarimas, 0);
       disponibles = slots.slice(Math.min(totalSalido, slots.length));
