@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Input, Select } from "@/components/ui/Field";
 import { diasDesde } from "@/lib/utils/dates";
@@ -70,10 +70,43 @@ export function SalidaLineaCard({
   onQuitar: () => void;
   puedeQuitar: boolean;
 }) {
+  const [busquedaProducto, setBusquedaProducto] = useState("");
+
   const productosDelCliente = useMemo(
     () => productos.filter((p) => p.cliente_id === linea.cliente_id),
     [productos, linea.cliente_id]
   );
+
+  // BL de cada producto (puede tener varios, uno por lote/embarque) — para
+  // que buscar por BL encuentre el producto correspondiente, no solo el SKU.
+  const blsPorProducto = useMemo(() => {
+    const mapa = new Map<string, Set<string>>();
+    existencias.forEach((e) => {
+      if (!e.numero_bl) return;
+      const set = mapa.get(e.producto_id) ?? new Set<string>();
+      set.add(e.numero_bl);
+      mapa.set(e.producto_id, set);
+    });
+    return mapa;
+  }, [existencias]);
+
+  const productosFiltrados = useMemo(() => {
+    const q = busquedaProducto.trim().toLowerCase();
+    if (!q) return productosDelCliente;
+    const filtrados = productosDelCliente.filter((p) => {
+      if (p.sku.toLowerCase().includes(q)) return true;
+      if (p.nombre.toLowerCase().includes(q)) return true;
+      const bls = blsPorProducto.get(p.id);
+      return bls ? [...bls].some((bl) => bl.toLowerCase().includes(q)) : false;
+    });
+    // Si ya había un producto elegido y la nueva búsqueda lo deja fuera, se
+    // mantiene visible en la lista — que no desaparezca lo ya seleccionado.
+    if (linea.producto_id && !filtrados.some((p) => p.id === linea.producto_id)) {
+      const actual = productosDelCliente.find((p) => p.id === linea.producto_id);
+      if (actual) return [actual, ...filtrados];
+    }
+    return filtrados;
+  }, [productosDelCliente, busquedaProducto, blsPorProducto, linea.producto_id]);
 
   const existenciasDelProducto = useMemo(
     () =>
@@ -124,7 +157,10 @@ export function SalidaLineaCard({
           label="Cliente"
           required
           value={linea.cliente_id}
-          onChange={(e) => onChange({ cliente_id: e.target.value, producto_id: "", combo: "", lote_id: "", ubicacion_id: "" })}
+          onChange={(e) => {
+            setBusquedaProducto("");
+            onChange({ cliente_id: e.target.value, producto_id: "", combo: "", lote_id: "", ubicacion_id: "" });
+          }}
         >
           <option value="" disabled>
             Selecciona un cliente
@@ -147,13 +183,28 @@ export function SalidaLineaCard({
           <option value="" disabled>
             {linea.cliente_id ? "Selecciona un producto" : "Primero elige un cliente"}
           </option>
-          {productosDelCliente.map((p) => (
+          {productosFiltrados.map((p) => (
             <option key={p.id} value={p.id}>
               {p.nombre} ({p.sku})
             </option>
           ))}
         </Select>
       </div>
+
+      {linea.cliente_id && (
+        <Input
+          id={`buscar-producto-${indice}`}
+          label="Buscar por BL o SKU"
+          placeholder="Ej. 4910… o YRB-NTMG-Z-50"
+          hint={
+            productosDelCliente.length > 0
+              ? `${productosFiltrados.length} de ${productosDelCliente.length} modelos de este cliente`
+              : "Este cliente no tiene productos capturados"
+          }
+          value={busquedaProducto}
+          onChange={(e) => setBusquedaProducto(e.target.value)}
+        />
+      )}
 
       <Select
         id={`lote-${indice}`}
