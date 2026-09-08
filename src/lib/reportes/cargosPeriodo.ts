@@ -17,6 +17,7 @@ export type CargoPeriodoLinea = {
   costo_maniobra_salida: number;
   costo_total: number;
   sin_tarifa: boolean;
+  tarifa_nombre: string | null;
 };
 
 function diasEntre(a: Date, b: Date): number {
@@ -155,6 +156,7 @@ export async function calcularCargosPeriodo(
       costo_maniobra_salida: Math.round(costoManiobraSalida * 100) / 100,
       costo_total: Math.round(costoTotal * 100) / 100,
       sin_tarifa: !tarifa,
+      tarifa_nombre: tarifa?.nombre ?? null,
     });
   }
 

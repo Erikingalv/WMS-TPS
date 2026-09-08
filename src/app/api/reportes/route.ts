@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
   const supabase = await createClient();
   let columnas: ColumnaPdf[] = [];
   let filas: string[][] = [];
+  let filasSinTarifa: number[] = [];
 
   if (tipo === "inventario") {
     const claves = (colsParam.length > 0 ? colsParam : DEFAULT_COLS_INVENTARIO).filter(
@@ -169,6 +170,7 @@ export async function GET(request: NextRequest) {
       { encabezado: "Producto", ancho: 2.2 },
       { encabezado: "SKU", ancho: 1.3 },
       { encabezado: "Días", ancho: 0.8 },
+      { encabezado: "Tarifa aplicada", ancho: 1.5 },
       { encabezado: "Cargo almacenaje", ancho: 1.4 },
       { encabezado: "Tarimas entrada", ancho: 1 },
       { encabezado: "Maniobra entrada", ancho: 1.3 },
@@ -190,6 +192,10 @@ export async function GET(request: NextRequest) {
       l.producto,
       l.sku,
       formatearNumero(l.dias_con_existencia),
+      // Un $0 puede ser un cargo real de $0 o simplemente que a este
+      // cliente nunca se le configuró una tarifa en /tarifas — sin esta
+      // columna, ambos casos se ven idénticos en el reporte.
+      l.sin_tarifa ? "SIN TARIFA CONFIGURADA" : (l.tarifa_nombre ?? "—"),
       formatearMoneda(l.costo_almacenaje),
       formatearNumero(l.tarimas_entrada),
       formatearMoneda(l.costo_maniobra_entrada),
@@ -197,10 +203,14 @@ export async function GET(request: NextRequest) {
       formatearMoneda(l.costo_maniobra_salida),
       formatearMoneda(l.costo_total),
     ]);
+    // Las filas sin tarifa configurada se resaltan en negrita para que
+    // salten a la vista en vez de perderse entre ceros silenciosos.
+    filasSinTarifa = lineas.map((l, i) => (l.sin_tarifa ? i : -1)).filter((i) => i >= 0);
     if (lineas.length > 0) {
       const suma = (f: (l: (typeof lineas)[number]) => number) => lineas.reduce((s, l) => s + f(l), 0);
       filas.push([
         "TOTAL",
+        "",
         "",
         "",
         "",
@@ -218,13 +228,14 @@ export async function GET(request: NextRequest) {
   const nombreArchivo = `${tipo}-${formatearFecha(new Date().toISOString()).replace(/\s/g, "-")}`;
 
   const esCargosConTotal = tipo === "cargos" && filas.length > 0 && filas[filas.length - 1][0] === "TOTAL";
+  const filasNegrita = esCargosConTotal ? [...filasSinTarifa, filas.length - 1] : filasSinTarifa;
 
   if (formato === "excel") {
     const buffer = await generarExcelTabla(
       TITULOS[tipo],
       columnas.map((c) => ({ encabezado: c.encabezado, ancho: c.ancho * 8 })),
       filas,
-      { filasNegrita: esCargosConTotal ? [filas.length - 1] : [] }
+      { filasNegrita }
     );
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
@@ -234,12 +245,16 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  const subtitulo = `Generado el ${formatearFechaHora(new Date().toISOString())} · ${filas.length} registros`;
+  const subtitulo =
+    `Generado el ${formatearFechaHora(new Date().toISOString())} · ${filas.length} registros` +
+    (filasSinTarifa.length > 0
+      ? ` · ${filasSinTarifa.length} sin tarifa configurada (revisa /tarifas)`
+      : "");
   let pdfBytes: Uint8Array;
   try {
     pdfBytes = await generarPdfTabla(TITULOS[tipo], subtitulo, columnas, filas, {
       orientacion: tipo === "cargos" || tipo === "inventario" || columnas.length > 9 ? "horizontal" : "vertical",
-      filasNegrita: esCargosConTotal ? [filas.length - 1] : [],
+      filasNegrita,
     });
   } catch {
     return NextResponse.json({ error: "No se pudo generar el PDF de este reporte" }, { status: 500 });
