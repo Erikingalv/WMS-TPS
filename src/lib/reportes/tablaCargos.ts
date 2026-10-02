@@ -34,6 +34,16 @@ export const COLUMNAS_RESUMEN_CARGOS: ColumnaPdf[] = [
   { encabezado: "Total a cobrar", ancho: 1.6 },
 ];
 
+export const TASA_IVA = 0.16;
+
+// IVA y total con IVA (total × 1.16) a partir del total sin IVA. Se redondea
+// el IVA a centavos y el total con IVA es la suma exacta, para que los dos
+// renglones siempre cuadren con el total.
+function conIva(total: number): { iva: number; totalConIva: number } {
+  const iva = Math.round(total * TASA_IVA * 100) / 100;
+  return { iva, totalConIva: Math.round((total + iva) * 100) / 100 };
+}
+
 const fechaDiaMes = (clave: string) =>
   new Date(`${clave}T12:00:00`).toLocaleDateString("es-MX", { day: "2-digit", month: "short" });
 
@@ -163,7 +173,19 @@ export function construirTablaCargos(lineas: CargoPeriodoLinea[]): {
   }
   if (lineas.length > 0) {
     negritas.push(filas.length);
-    filas.push(filaSumas("TOTAL GENERAL", "", sumar(lineas)));
+    const totales = sumar(lineas);
+    filas.push(filaSumas("TOTAL GENERAL", "", totales));
+    const { iva, totalConIva } = conIva(totales.total);
+    const filaIva = (etiqueta: string, monto: number): string[] => {
+      const f = new Array<string>(COLUMNAS_CARGOS.length).fill("");
+      f[0] = etiqueta;
+      f[COLUMNAS_CARGOS.length - 2] = formatearMoneda(monto);
+      return f;
+    };
+    negritas.push(filas.length);
+    filas.push(filaIva("IVA (16%)", iva));
+    negritas.push(filas.length);
+    filas.push(filaIva("TOTAL CON IVA (total × 1.16)", totalConIva));
   }
 
 
@@ -216,6 +238,17 @@ export function construirResumenCargos(lineas: CargoPeriodoLinea[]): {
       formatearMoneda(suma(lineas, (l) => l.costo_maniobra_entrada + l.costo_maniobra_salida)),
       formatearMoneda(suma(lineas, (l) => l.costo_total)),
     ]);
+    const { iva, totalConIva } = conIva(suma(lineas, (l) => l.costo_total));
+    const filaIva = (etiqueta: string, monto: number): string[] => {
+      const f = new Array<string>(COLUMNAS_RESUMEN_CARGOS.length).fill("");
+      f[0] = etiqueta;
+      f[COLUMNAS_RESUMEN_CARGOS.length - 1] = formatearMoneda(monto);
+      return f;
+    };
+    negritas.push(filas.length);
+    filas.push(filaIva("IVA (16%)", iva));
+    negritas.push(filas.length);
+    filas.push(filaIva("TOTAL CON IVA (total × 1.16)", totalConIva));
   }
   return { filas, negritas };
 }
