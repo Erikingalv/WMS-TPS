@@ -157,3 +157,14 @@ function truncarTexto(texto: string, fuente: PDFFont, tamano: number, anchoMax: 
   }
   return recortado + "…";
 }
+
+// Une varios PDF en uno, en el orden dado (ej. hoja de resumen + detalle).
+export async function unirPdfs(pdfs: Uint8Array[]): Promise<Uint8Array> {
+  const salida = await PDFDocument.create();
+  for (const bytes of pdfs) {
+    const origen = await PDFDocument.load(bytes);
+    const paginas = await salida.copyPages(origen, origen.getPageIndices());
+    paginas.forEach((p) => salida.addPage(p));
+  }
+  return salida.save();
+}

@@ -9,7 +9,7 @@ import type { PDFFont } from "pdf-lib";
 // se calcula el envuelto a mano: así se sabe exactamente cuánta altura
 // ocupó cada campo antes de dibujar el que sigue.
 // ---------------------------------------------------------------
-export function envolverTexto(texto: string, fuente: PDFFont, tamano: number, anchoMax: number): string[] {
+function envolverParrafo(texto: string, fuente: PDFFont, tamano: number, anchoMax: number): string[] {
   const limpio = texto || "—";
   const palabras = limpio.split(/\s+/).filter(Boolean);
   if (palabras.length === 0) return ["—"];
@@ -39,4 +39,12 @@ export function envolverTexto(texto: string, fuente: PDFFont, tamano: number, an
   }
   if (actual) lineas.push(actual);
   return lineas.length > 0 ? lineas : ["—"];
+}
+
+// Igual, pero respeta los saltos de línea del texto (cada "\n" empieza un
+// renglón nuevo) — para celdas con varias líneas, como el cálculo de un cobro.
+export function envolverTexto(texto: string, fuente: PDFFont, tamano: number, anchoMax: number): string[] {
+  const parrafos = (texto || "—").split("\n");
+  if (parrafos.length === 1) return envolverParrafo(texto, fuente, tamano, anchoMax);
+  return parrafos.flatMap((p) => (p.trim() === "" ? [""] : envolverParrafo(p, fuente, tamano, anchoMax)));
 }

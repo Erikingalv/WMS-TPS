@@ -1,7 +1,23 @@
 import type { createClient } from "@/lib/supabase/server";
 import type { Cliente, Lote, Producto, TarifaEscalon } from "@/lib/types/database";
+import { formatearMoneda } from "@/lib/utils/numeros";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+// Un tramo del cobro de almacenaje: días consecutivos con la misma cantidad
+// de tarimas en bodega y la misma tarifa. Es lo que permite explicar el
+// monto ("20 tarimas × 63 días × $7.50") aun cuando salieron tarimas a la
+// mitad del periodo o cambió el escalón de la tarifa.
+export type SegmentoAlmacenaje = {
+  tarimas: number;
+  dias: number;
+  // Costo por tarima por día; null si ningún escalón de la tarifa cubre esos días.
+  tarifa: number | null;
+  gratis: boolean;
+  subtotal: number;
+  desde: string; // YYYY-MM-DD
+  hasta: string;
+};
 
 export type CargoPeriodoLinea = {
   lote_id: string;
@@ -25,7 +41,38 @@ export type CargoPeriodoLinea = {
   // mostrar "entró el X, salió el Y" o "sigue en bodega".
   fecha_ultima_salida: string | null;
   tarimas_restantes: number;
+  segmentos: SegmentoAlmacenaje[];
+  tarimas_dia: number; // suma de tarimas × días con existencia en el periodo
+  tarifa_texto: string | null; // la tarifa en pesos, ej. "$7.50 por tarima por día"
+  maniobra_entrada_unitaria: number | null;
+  maniobra_salida_unitaria: number | null;
 };
+
+// La tarifa en pesos, legible: "$7.50 por tarima por día", o por tramos si
+// tiene escalones ("Días 0 al 4: gratis · Del día 5 en adelante: $7.50").
+export function describirEscalones(escalones: TarifaEscalon[]): string | null {
+  if (escalones.length === 0) return null;
+  const orden = [...escalones].sort((a, b) => a.dia_inicio - b.dia_inicio);
+  const precio = (e: TarifaEscalon) => (e.es_gratis ? "gratis" : `${formatearMoneda(e.costo_por_tarima)} por tarima por día`);
+  if (orden.length === 1 && orden[0].dia_inicio === 0 && orden[0].dia_fin == null) return precio(orden[0]);
+  return orden
+    .map((e) => {
+      const rango =
+        e.dia_fin == null
+          ? `Del día ${e.dia_inicio} en adelante`
+          : e.dia_inicio === e.dia_fin
+            ? `Día ${e.dia_inicio}`
+            : `Del día ${e.dia_inicio} al ${e.dia_fin}`;
+      return `${rango}: ${precio(e)}`;
+    })
+    .join(" · ");
+}
+
+function claveDia(d: Date): string {
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
 
 function diasEntre(a: Date, b: Date): number {
   const msPorDia = 24 * 60 * 60 * 1000;
@@ -110,6 +157,8 @@ export async function calcularCargosPeriodo(
 
     let costoAlmacenaje = 0;
     let diasConExistencia = 0;
+    let tarimasDia = 0;
+    const segmentos: SegmentoAlmacenaje[] = [];
 
     for (let d = new Date(fechaDesde); d <= fechaHasta; d.setDate(d.getDate() + 1)) {
       if (d < fechaIngresoDia) continue;
@@ -124,8 +173,27 @@ export async function calcularCargosPeriodo(
       const escalon = escalones.find(
         (e) => edad >= e.dia_inicio && (e.dia_fin == null || edad <= e.dia_fin)
       );
-      if (escalon && !escalon.es_gratis) {
-        costoAlmacenaje += tarimasEseDia * escalon.costo_por_tarima;
+      const costoDia = escalon && !escalon.es_gratis ? tarimasEseDia * escalon.costo_por_tarima : 0;
+      costoAlmacenaje += costoDia;
+      tarimasDia += tarimasEseDia;
+
+      const tarifaDia = escalon ? (escalon.es_gratis ? 0 : escalon.costo_por_tarima) : null;
+      const gratisDia = escalon?.es_gratis === true;
+      const ultimo = segmentos[segmentos.length - 1];
+      if (ultimo && ultimo.tarimas === tarimasEseDia && ultimo.tarifa === tarifaDia && ultimo.gratis === gratisDia) {
+        ultimo.dias += 1;
+        ultimo.hasta = claveDia(d);
+        ultimo.subtotal = Math.round((ultimo.subtotal + costoDia) * 100) / 100;
+      } else {
+        segmentos.push({
+          tarimas: tarimasEseDia,
+          dias: 1,
+          tarifa: tarifaDia,
+          gratis: gratisDia,
+          subtotal: Math.round(costoDia * 100) / 100,
+          desde: claveDia(d),
+          hasta: claveDia(d),
+        });
       }
     }
 
@@ -169,6 +237,11 @@ export async function calcularCargosPeriodo(
       fecha_ingreso: lote.fecha_ingreso,
       fecha_ultima_salida: salidas.length > 0 ? salidas[salidas.length - 1].fecha : null,
       tarimas_restantes: Math.max(0, lote.tarimas_inicial - salidas.reduce((sum, x) => sum + x.cantidad_tarimas, 0)),
+      segmentos,
+      tarimas_dia: tarimasDia,
+      tarifa_texto: describirEscalones(escalones),
+      maniobra_entrada_unitaria: tarifa ? tarifa.costo_maniobra_entrada : null,
+      maniobra_salida_unitaria: tarifa ? tarifa.costo_maniobra_salida : null,
     });
   }
 

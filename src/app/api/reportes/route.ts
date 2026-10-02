@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { generarPdfTabla, type ColumnaPdf } from "@/lib/reportes/pdf";
-import { generarExcelTabla } from "@/lib/reportes/excel";
+import { generarPdfTabla, unirPdfs, type ColumnaPdf } from "@/lib/reportes/pdf";
+import { generarExcelTabla, generarExcelLibro } from "@/lib/reportes/excel";
 import { calcularCargosPeriodo } from "@/lib/reportes/cargosPeriodo";
-import { COLUMNAS_CARGOS, construirTablaCargos } from "@/lib/reportes/tablaCargos";
+import {
+  COLUMNAS_CARGOS,
+  COLUMNAS_RESUMEN_CARGOS,
+  construirTablaCargos,
+  construirResumenCargos,
+} from "@/lib/reportes/tablaCargos";
 import {
   COLUMNAS_ENTRADAS,
   COLUMNAS_SALIDAS,
@@ -50,6 +55,7 @@ export async function GET(request: NextRequest) {
   let filasSinTarifa: number[] = [];
   let sinTarifaLotes = 0;
   let registrosCargos = 0;
+  let resumenCargos: { filas: string[][]; negritas: number[] } | null = null;
 
   if (tipo === "inventario") {
     const claves = (colsParam.length > 0 ? colsParam : DEFAULT_COLS_INVENTARIO).filter(
@@ -181,6 +187,7 @@ export async function GET(request: NextRequest) {
     filasSinTarifa = tabla.negritas;
     sinTarifaLotes = tabla.sinTarifaLotes;
     registrosCargos = lineas.length;
+    resumenCargos = construirResumenCargos(lineas);
   }
 
   const nombreArchivo = `${tipo}-${formatearFecha(new Date().toISOString()).replace(/\s/g, "-")}`;
@@ -188,12 +195,27 @@ export async function GET(request: NextRequest) {
   const filasNegrita = filasSinTarifa;
 
   if (formato === "excel") {
-    const buffer = await generarExcelTabla(
-      TITULOS[tipo],
-      columnas.map((c) => ({ encabezado: c.encabezado, ancho: c.ancho * 8 })),
-      filas,
-      { filasNegrita }
-    );
+    const buffer = resumenCargos
+      ? await generarExcelLibro([
+          {
+            nombre: "Resumen",
+            columnas: COLUMNAS_RESUMEN_CARGOS.map((c) => ({ encabezado: c.encabezado, ancho: c.ancho * 12 })),
+            filas: resumenCargos.filas,
+            filasNegrita: resumenCargos.negritas,
+          },
+          {
+            nombre: "Detalle por lote",
+            columnas: columnas.map((c) => ({ encabezado: c.encabezado, ancho: c.ancho * 8 })),
+            filas,
+            filasNegrita,
+          },
+        ])
+      : await generarExcelTabla(
+          TITULOS[tipo],
+          columnas.map((c) => ({ encabezado: c.encabezado, ancho: c.ancho * 8 })),
+          filas,
+          { filasNegrita }
+        );
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
         "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -210,11 +232,29 @@ export async function GET(request: NextRequest) {
       : `${generado} · ${filas.length} registros`;
   let pdfBytes: Uint8Array;
   try {
-    pdfBytes = await generarPdfTabla(TITULOS[tipo], subtitulo, columnas, filas, {
-      orientacion: tipo === "cargos" || tipo === "inventario" || columnas.length > 9 ? "horizontal" : "vertical",
-      filasNegrita,
-      ...(tipo === "cargos" ? { ajustarTexto: true, tamanoFuente: 7.5, paginaAncha: true } : {}),
-    });
+    if (resumenCargos) {
+      // Hoja de resumen por cliente al inicio, y después el detalle por lote.
+      const resumenPdf = await generarPdfTabla("Cargos por periodo — resumen por cliente", subtitulo, COLUMNAS_RESUMEN_CARGOS, resumenCargos.filas, {
+        orientacion: "horizontal",
+        paginaAncha: true,
+        ajustarTexto: true,
+        tamanoFuente: 9,
+        filasNegrita: resumenCargos.negritas,
+      });
+      const detallePdf = await generarPdfTabla("Cargos por periodo — detalle por lote", subtitulo, columnas, filas, {
+        orientacion: "horizontal",
+        filasNegrita,
+        ajustarTexto: true,
+        tamanoFuente: 7.5,
+        paginaAncha: true,
+      });
+      pdfBytes = await unirPdfs([resumenPdf, detallePdf]);
+    } else {
+      pdfBytes = await generarPdfTabla(TITULOS[tipo], subtitulo, columnas, filas, {
+        orientacion: tipo === "inventario" || columnas.length > 9 ? "horizontal" : "vertical",
+        filasNegrita,
+      });
+    }
   } catch {
     return NextResponse.json({ error: "No se pudo generar el PDF de este reporte" }, { status: 500 });
   }
