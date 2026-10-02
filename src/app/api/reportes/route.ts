@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { generarPdfTabla, type ColumnaPdf } from "@/lib/reportes/pdf";
 import { generarExcelTabla } from "@/lib/reportes/excel";
 import { calcularCargosPeriodo } from "@/lib/reportes/cargosPeriodo";
+import { COLUMNAS_CARGOS, construirTablaCargos } from "@/lib/reportes/tablaCargos";
 import {
   COLUMNAS_ENTRADAS,
   COLUMNAS_SALIDAS,
@@ -17,7 +18,7 @@ import {
   DEFAULT_COLS_INVENTARIO,
 } from "@/lib/reportes/inventarioDetallado";
 import { formatearFecha, formatearFechaHora } from "@/lib/utils/dates";
-import { formatearNumero, formatearMoneda } from "@/lib/utils/numeros";
+import { formatearNumero } from "@/lib/utils/numeros";
 
 type TipoReporte = "inventario" | "entradas" | "salidas" | "movimientos" | "ocupacion" | "cargos";
 
@@ -47,6 +48,8 @@ export async function GET(request: NextRequest) {
   let columnas: ColumnaPdf[] = [];
   let filas: string[][] = [];
   let filasSinTarifa: number[] = [];
+  let sinTarifaLotes = 0;
+  let registrosCargos = 0;
 
   if (tipo === "inventario") {
     const claves = (colsParam.length > 0 ? colsParam : DEFAULT_COLS_INVENTARIO).filter(
@@ -164,71 +167,25 @@ export async function GET(request: NextRequest) {
   }
 
   if (tipo === "cargos") {
-    columnas = [
-      { encabezado: "Lote", ancho: 1.6 },
-      { encabezado: "Cliente", ancho: 1.8 },
-      { encabezado: "Producto", ancho: 2.2 },
-      { encabezado: "SKU", ancho: 1.3 },
-      { encabezado: "Días", ancho: 0.8 },
-      { encabezado: "Tarifa aplicada", ancho: 1.5 },
-      { encabezado: "Cargo almacenaje", ancho: 1.4 },
-      { encabezado: "Tarimas entrada", ancho: 1 },
-      { encabezado: "Maniobra entrada", ancho: 1.3 },
-      { encabezado: "Tarimas salida", ancho: 1 },
-      { encabezado: "Maniobra salida", ancho: 1.3 },
-      { encabezado: "Total", ancho: 1.3 },
-    ];
+    columnas = COLUMNAS_CARGOS;
     if (!desde || !hasta) {
       return NextResponse.json(
         { error: "Selecciona un rango de fechas (desde/hasta) para el reporte de cargos" },
         { status: 400 }
       );
     }
-    // Ya viene ordenado de mayor a menor antigüedad (días con existencia).
+    // Ya viene agrupado por cliente y, dentro de cada uno, por fecha de entrada.
     const lineas = await calcularCargosPeriodo(supabase, { desde, hasta, clienteId });
-    filas = lineas.map((l) => [
-      l.codigo_lote,
-      l.cliente,
-      l.producto,
-      l.sku,
-      formatearNumero(l.dias_con_existencia),
-      // Un $0 puede ser un cargo real de $0 o simplemente que a este
-      // cliente nunca se le configuró una tarifa en /tarifas — sin esta
-      // columna, ambos casos se ven idénticos en el reporte.
-      l.sin_tarifa ? "SIN TARIFA CONFIGURADA" : (l.tarifa_nombre ?? "—"),
-      formatearMoneda(l.costo_almacenaje),
-      formatearNumero(l.tarimas_entrada),
-      formatearMoneda(l.costo_maniobra_entrada),
-      formatearNumero(l.tarimas_salida),
-      formatearMoneda(l.costo_maniobra_salida),
-      formatearMoneda(l.costo_total),
-    ]);
-    // Las filas sin tarifa configurada se resaltan en negrita para que
-    // salten a la vista en vez de perderse entre ceros silenciosos.
-    filasSinTarifa = lineas.map((l, i) => (l.sin_tarifa ? i : -1)).filter((i) => i >= 0);
-    if (lineas.length > 0) {
-      const suma = (f: (l: (typeof lineas)[number]) => number) => lineas.reduce((s, l) => s + f(l), 0);
-      filas.push([
-        "TOTAL",
-        "",
-        "",
-        "",
-        "",
-        "",
-        formatearMoneda(suma((l) => l.costo_almacenaje)),
-        formatearNumero(suma((l) => l.tarimas_entrada)),
-        formatearMoneda(suma((l) => l.costo_maniobra_entrada)),
-        formatearNumero(suma((l) => l.tarimas_salida)),
-        formatearMoneda(suma((l) => l.costo_maniobra_salida)),
-        formatearMoneda(suma((l) => l.costo_total)),
-      ]);
-    }
+    const tabla = construirTablaCargos(lineas);
+    filas = tabla.filas;
+    filasSinTarifa = tabla.negritas;
+    sinTarifaLotes = tabla.sinTarifaLotes;
+    registrosCargos = lineas.length;
   }
 
   const nombreArchivo = `${tipo}-${formatearFecha(new Date().toISOString()).replace(/\s/g, "-")}`;
 
-  const esCargosConTotal = tipo === "cargos" && filas.length > 0 && filas[filas.length - 1][0] === "TOTAL";
-  const filasNegrita = esCargosConTotal ? [...filasSinTarifa, filas.length - 1] : filasSinTarifa;
+  const filasNegrita = filasSinTarifa;
 
   if (formato === "excel") {
     const buffer = await generarExcelTabla(
@@ -245,16 +202,18 @@ export async function GET(request: NextRequest) {
     });
   }
 
+  const generado = `Generado el ${formatearFechaHora(new Date().toISOString())}`;
   const subtitulo =
-    `Generado el ${formatearFechaHora(new Date().toISOString())} · ${filas.length} registros` +
-    (filasSinTarifa.length > 0
-      ? ` · ${filasSinTarifa.length} sin tarifa configurada (revisa /tarifas)`
-      : "");
+    tipo === "cargos" && desde && hasta
+      ? `Periodo del ${formatearFecha(`${desde}T12:00:00`)} al ${formatearFecha(`${hasta}T12:00:00`)} · ${generado} · ${registrosCargos} lotes` +
+        (sinTarifaLotes > 0 ? ` · ${sinTarifaLotes} sin tarifa configurada (revisa /tarifas)` : "")
+      : `${generado} · ${filas.length} registros`;
   let pdfBytes: Uint8Array;
   try {
     pdfBytes = await generarPdfTabla(TITULOS[tipo], subtitulo, columnas, filas, {
       orientacion: tipo === "cargos" || tipo === "inventario" || columnas.length > 9 ? "horizontal" : "vertical",
       filasNegrita,
+      ...(tipo === "cargos" ? { ajustarTexto: true, tamanoFuente: 7.5, paginaAncha: true } : {}),
     });
   } catch {
     return NextResponse.json({ error: "No se pudo generar el PDF de este reporte" }, { status: 500 });

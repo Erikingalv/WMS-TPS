@@ -18,6 +18,13 @@ export type CargoPeriodoLinea = {
   costo_total: number;
   sin_tarifa: boolean;
   tarifa_nombre: string | null;
+  numero_bl: string | null;
+  fecha_ingreso: string;
+  // Última salida registrada del lote (de cualquier fecha, no solo del
+  // periodo) y cuántas tarimas siguen en bodega al día de hoy — para poder
+  // mostrar "entró el X, salió el Y" o "sigue en bodega".
+  fecha_ultima_salida: string | null;
+  tarimas_restantes: number;
 };
 
 function diasEntre(a: Date, b: Date): number {
@@ -42,11 +49,12 @@ export async function calcularCargosPeriodo(
     productos:
       | (Pick<Producto, "nombre" | "sku" | "cliente_id"> & { clientes: Pick<Cliente, "nombre"> | null })
       | null;
+    entradas: { numero_bl: string | null }[] | null;
   };
 
   const { data: lotesRaw } = await supabase
     .from("lotes")
-    .select("id, codigo_lote, fecha_ingreso, tarimas_inicial, producto_id, productos(nombre, sku, cliente_id, clientes(nombre))")
+    .select("id, codigo_lote, fecha_ingreso, tarimas_inicial, producto_id, productos(nombre, sku, cliente_id, clientes(nombre)), entradas(numero_bl)")
     .lte("fecha_ingreso", `${hasta}T23:59:59`);
   let lotes = (lotesRaw ?? []) as unknown as LoteConProducto[];
   if (clienteId) lotes = lotes.filter((l) => l.productos?.cliente_id === clienteId);
@@ -157,10 +165,19 @@ export async function calcularCargosPeriodo(
       costo_total: Math.round(costoTotal * 100) / 100,
       sin_tarifa: !tarifa,
       tarifa_nombre: tarifa?.nombre ?? null,
+      numero_bl: lote.entradas?.[0]?.numero_bl ?? null,
+      fecha_ingreso: lote.fecha_ingreso,
+      fecha_ultima_salida: salidas.length > 0 ? salidas[salidas.length - 1].fecha : null,
+      tarimas_restantes: Math.max(0, lote.tarimas_inicial - salidas.reduce((sum, x) => sum + x.cantidad_tarimas, 0)),
     });
   }
 
+  // Agrupado por cliente (que es como se factura), y dentro de cada uno por
+  // fecha de entrada.
   return lineas.sort(
-    (a, b) => b.dias_con_existencia - a.dias_con_existencia || a.codigo_lote.localeCompare(b.codigo_lote)
+    (a, b) =>
+      a.cliente.localeCompare(b.cliente) ||
+      new Date(a.fecha_ingreso).getTime() - new Date(b.fecha_ingreso).getTime() ||
+      a.codigo_lote.localeCompare(b.codigo_lote)
   );
 }
