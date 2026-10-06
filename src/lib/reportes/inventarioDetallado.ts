@@ -197,10 +197,18 @@ export async function obtenerInventarioDetallado(
     ((entradasRaw ?? []) as unknown as EntradaOrigen[]).map((e) => [e.lote_id, e])
   );
 
-  type SalidaOrigen = { lote_id: string; cantidad_tarimas: number; tarima_desde: number | null; tarima_hasta: number | null; tarima_numeros: number[] | null };
+  type SalidaOrigen = {
+    lote_id: string;
+    cantidad_piezas: number;
+    cantidad_tarimas: number;
+    tarima_desde: number | null;
+    tarima_hasta: number | null;
+    tarima_numeros: number[] | null;
+    numero_tarima_parcial: number | null;
+  };
   const { data: salidasRaw } = await supabase
     .from("salidas")
-    .select("lote_id, cantidad_tarimas, tarima_desde, tarima_hasta, tarima_numeros")
+    .select("lote_id, cantidad_piezas, cantidad_tarimas, tarima_desde, tarima_hasta, tarima_numeros, numero_tarima_parcial")
     .in("lote_id", loteIds);
   const salidasPorLote = new Map<string, SalidaOrigen[]>();
   ((salidasRaw ?? []) as unknown as SalidaOrigen[]).forEach((s) => {
@@ -272,17 +280,39 @@ export async function obtenerInventarioDetallado(
 
     if (disponibles.length === 0) continue;
 
+    // Salidas de piezas sueltas (0 tarimas: muestras, una caja abierta): la
+    // tarima sigue en bodega pero con menos piezas. Si se indicó de qué
+    // tarima salieron, se le descuentan a esa; si no, lo resuelve el ajuste
+    // de abajo.
+    if (usaFisico) {
+      for (const sal of salidasPorLote.get(e.lote_id) ?? []) {
+        if (sal.cantidad_tarimas !== 0 || sal.numero_tarima_parcial == null) continue;
+        const idx = disponibles.findIndex((d) => d.numero_tarima === sal.numero_tarima_parcial);
+        if (idx === -1) continue;
+        const quita = Math.min(disponibles[idx].piezas, sal.cantidad_piezas);
+        disponibles = disponibles.map((d, i) => (i === idx ? { ...d, piezas: d.piezas - quita, esParcial: true } : d));
+      }
+    }
+
     // Ajuste para que el desglose siempre sume exacto con la existencia
     // real (una salida parcial documentada como nota no mueve piezas de
-    // una tarima específica del desglose).
+    // una tarima específica del desglose). Si sobran piezas se quitan desde
+    // la última tarima hacia atrás (no todo a una sola, que podría no
+    // alcanzar); si faltan, se suman a la última.
     const sumaDisponibles = disponibles.reduce((s, d) => s + d.piezas, 0);
-    const diferencia = e.cantidad_piezas - sumaDisponibles;
-    if (diferencia !== 0) {
+    let diferencia = e.cantidad_piezas - sumaDisponibles;
+    if (diferencia > 0) {
       const ultimo = disponibles[disponibles.length - 1];
-      disponibles = [
-        ...disponibles.slice(0, -1),
-        { ...ultimo, piezas: Math.max(0, ultimo.piezas + diferencia) },
-      ];
+      disponibles = [...disponibles.slice(0, -1), { ...ultimo, piezas: ultimo.piezas + diferencia }];
+    } else if (diferencia < 0) {
+      disponibles = [...disponibles];
+      for (let i = disponibles.length - 1; i >= 0 && diferencia < 0; i--) {
+        const quita = Math.min(disponibles[i].piezas, -diferencia);
+        if (quita > 0) {
+          disponibles[i] = { ...disponibles[i], piezas: disponibles[i].piezas - quita };
+          diferencia += quita;
+        }
+      }
     }
 
     for (const slot of disponibles) {

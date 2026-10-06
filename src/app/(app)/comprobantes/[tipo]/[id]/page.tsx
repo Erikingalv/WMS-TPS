@@ -6,7 +6,7 @@ import { urlPublica } from "@/lib/supabase/storage";
 import { getUsuarioActual } from "@/lib/auth/session";
 import { puedeCorregirMovimientos, PUEDE_SUBIR_EVIDENCIA, tienePermiso } from "@/lib/auth/permisos";
 import { formatearFecha } from "@/lib/utils/dates";
-import { formatearNumero } from "@/lib/utils/numeros";
+import { formatearNumero, piezasPorTarima } from "@/lib/utils/numeros";
 import { Badge } from "@/components/ui/Badge";
 import { Card } from "@/components/ui/Card";
 import { SubmitButton, ButtonLink } from "@/components/ui/Button";
@@ -158,7 +158,14 @@ export default async function ComprobanteDetallePage({
                 <Campo etiqueta="SKU" valor={data.productos?.sku ?? "—"} />
                 <Campo etiqueta="Ubicación" valor={data.ubicaciones?.codigo ?? "—"} />
                 <Campo etiqueta="Piezas" valor={formatearNumero(data.cantidad_piezas)} />
-                <Campo etiqueta="Tarimas" valor={formatearNumero(data.cantidad_tarimas)} />
+                <Campo
+                  etiqueta="Tarimas"
+                  valor={
+                    data.cantidad_tarimas === 0
+                      ? "0 (piezas sueltas: la tarima se queda en bodega)"
+                      : formatearNumero(data.cantidad_tarimas)
+                  }
+                />
               </>
             )}
             {!esGrupo &&
@@ -182,6 +189,13 @@ export default async function ComprobanteDetallePage({
                 <Campo
                   etiqueta="Cantidad por caja"
                   valor={data.cantidad_por_caja != null ? formatearNumero(data.cantidad_por_caja) : "—"}
+                />
+                <Campo
+                  etiqueta="Piezas por tarima"
+                  valor={(() => {
+                    const n = piezasPorTarima(data.cajas_por_pallet, data.cantidad_por_caja);
+                    return n != null ? formatearNumero(n) : "—";
+                  })()}
                 />
                 <Campo etiqueta="Categoría" valor={data.categoria_producto ?? "—"} />
                 <Campo etiqueta="Lote 1" valor={data.lote_1 ?? "—"} />

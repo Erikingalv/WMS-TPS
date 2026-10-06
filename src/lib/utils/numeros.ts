@@ -7,3 +7,10 @@ export function formatearNumero(n: number): string {
 export function formatearMoneda(n: number): string {
   return n.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
 }
+
+// Piezas que lleva una tarima completa: cajas por pallet × piezas por caja.
+// null si falta alguno de los dos datos.
+export function piezasPorTarima(cajasPorPallet: number | null | undefined, cantidadPorCaja: number | null | undefined): number | null {
+  if (!cajasPorPallet || !cantidadPorCaja) return null;
+  return cajasPorPallet * cantidadPorCaja;
+}

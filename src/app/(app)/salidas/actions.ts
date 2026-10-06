@@ -72,17 +72,20 @@ export async function crearSalida(formData: FormData) {
   for (let i = 0; i < lineas.length; i++) {
     const l = lineas[i];
 
-    if (!l.lote_id || !l.ubicacion_id || !l.cantidad_piezas || !l.cantidad_tarimas) {
+    // Piezas sueltas (muestras, una caja abierta): 0 tarimas — la tarima se
+    // queda en bodega y se sigue cobrando.
+    const tarimasSalida = l.solo_piezas ? 0 : l.cantidad_tarimas;
+    if (!l.lote_id || !l.ubicacion_id || !l.cantidad_piezas || tarimasSalida == null || (!l.solo_piezas && !tarimasSalida)) {
       resultados.push({
         ok: false,
         indice: i,
-        mensaje: `Producto ${i + 1}: selecciona un lote válido y captura piezas/tarimas.`,
+        mensaje: `Producto ${i + 1}: selecciona un lote válido y captura piezas${l.solo_piezas ? "" : "/tarimas"}.`,
       });
       continue;
     }
 
     let tarima_numeros: number[] | null = null;
-    if (l.tarima_numeros_texto?.trim()) {
+    if (!l.solo_piezas && l.tarima_numeros_texto?.trim()) {
       tarima_numeros = parsearTarimas(l.tarima_numeros_texto.trim());
       if (!tarima_numeros) {
         resultados.push({
@@ -98,7 +101,7 @@ export async function crearSalida(formData: FormData) {
       p_lote_id: l.lote_id,
       p_ubicacion_id: l.ubicacion_id,
       p_cantidad_piezas: l.cantidad_piezas,
-      p_cantidad_tarimas: l.cantidad_tarimas,
+      p_cantidad_tarimas: tarimasSalida,
       p_fecha_movimiento: fecha_movimiento,
       p_hora_carga_descarga: hora_carga_descarga,
       p_destino: destino,
@@ -117,7 +120,7 @@ export async function crearSalida(formData: FormData) {
       p_numero_bl: l.numero_bl || null,
       p_presentacion: l.presentacion || null,
       p_tarima_numeros: tarima_numeros,
-      p_piezas_tarima_parcial: l.piezas_tarima_parcial,
+      p_piezas_tarima_parcial: l.solo_piezas ? l.cantidad_piezas : l.piezas_tarima_parcial,
       p_numero_tarima_parcial: l.numero_tarima_parcial,
       p_grupo_id: grupoId,
     });

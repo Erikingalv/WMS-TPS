@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { Trash2 } from "lucide-react";
 import { Input, Select } from "@/components/ui/Field";
+import { formatearNumero, piezasPorTarima } from "@/lib/utils/numeros";
 import { TarimasParcialesEditor } from "@/components/entradas/TarimasParcialesEditor";
 import type { Cliente, Producto, TarimaParcial, Ubicacion } from "@/lib/types/database";
 
@@ -220,6 +221,19 @@ export function EntradaLineaCard({
             onChange={(e) => onChange({ cantidad_por_caja: e.target.value === "" ? null : Number(e.target.value) })}
           />
         </div>
+        {piezasPorTarima(linea.cajas_por_pallet, linea.cantidad_por_caja) != null && (
+          <Input
+            id={`piezas-por-tarima-${indice}`}
+            label="Piezas por tarima (cajas por pallet × cantidad por caja)"
+            readOnly
+            value={formatearNumero(piezasPorTarima(linea.cajas_por_pallet, linea.cantidad_por_caja) ?? 0)}
+            hint={
+              linea.cantidad_tarimas
+                ? `Con ${formatearNumero(linea.cantidad_tarimas)} tarima(s) completas serían ${formatearNumero((piezasPorTarima(linea.cajas_por_pallet, linea.cantidad_por_caja) ?? 0) * linea.cantidad_tarimas)} piezas`
+                : undefined
+            }
+          />
+        )}
         <div className="grid gap-5 sm:grid-cols-2">
           <Input
             id={`categoria-${indice}`}

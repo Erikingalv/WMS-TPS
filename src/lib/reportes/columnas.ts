@@ -1,7 +1,7 @@
 import type { Cliente, Entrada, Lote, Producto, Salida, Ubicacion, Usuario } from "@/lib/types/database";
 import { formatearFecha } from "@/lib/utils/dates";
 import { formatearTarimas } from "@/lib/utils/tarimas";
-import { formatearNumero } from "@/lib/utils/numeros";
+import { formatearNumero, piezasPorTarima } from "@/lib/utils/numeros";
 
 // Columnas seleccionables para Entradas/Salidas — mismos apartados que el
 // Excel de control que ya llevaba Erik, para que el reporte le sirva tal
@@ -38,6 +38,14 @@ export const COLUMNAS_ENTRADAS: Record<string, { label: string; ancho: number; v
   },
   cajas_pallet: { label: "Cajas/pallet", ancho: 1, valor: (f) => (f.cajas_por_pallet != null ? formatearNumero(f.cajas_por_pallet) : "—") },
   cant_caja: { label: "Cant./caja", ancho: 1, valor: (f) => (f.cantidad_por_caja != null ? formatearNumero(f.cantidad_por_caja) : "—") },
+  piezas_tarima: {
+    label: "Piezas/tarima",
+    ancho: 1.1,
+    valor: (f) => {
+      const n = piezasPorTarima(f.cajas_por_pallet, f.cantidad_por_caja);
+      return n != null ? formatearNumero(n) : "—";
+    },
+  },
   categoria: { label: "Categoría", ancho: 1.6, valor: (f) => f.categoria_producto ?? "—" },
   lote: { label: "Lote", ancho: 1.6, valor: (f) => f.lotes?.codigo_lote ?? "—" },
   lote_1: { label: "Lote 1", ancho: 1.4, valor: (f) => f.lote_1 ?? "—" },
@@ -72,6 +80,14 @@ export const COLUMNAS_SALIDAS: Record<string, { label: string; ancho: number; va
   },
   cajas_pallet: { label: "Cajas/pallet", ancho: 1, valor: (f) => (f.cajas_por_pallet != null ? formatearNumero(f.cajas_por_pallet) : "—") },
   cant_caja: { label: "Cant./caja", ancho: 1, valor: (f) => (f.cantidad_por_caja != null ? formatearNumero(f.cantidad_por_caja) : "—") },
+  piezas_tarima: {
+    label: "Piezas/tarima",
+    ancho: 1.1,
+    valor: (f) => {
+      const n = piezasPorTarima(f.cajas_por_pallet, f.cantidad_por_caja);
+      return n != null ? formatearNumero(n) : "—";
+    },
+  },
   categoria: { label: "Categoría", ancho: 1.6, valor: (f) => f.categoria_producto ?? "—" },
   lote: { label: "Lote", ancho: 1.6, valor: (f) => f.lotes?.codigo_lote ?? "—" },
   lote_1: { label: "Lote 1", ancho: 1.4, valor: (f) => f.lote_1 ?? "—" },

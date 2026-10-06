@@ -7,8 +7,13 @@ import {
 } from "@/lib/reportes/comprobante";
 import { formatearFecha } from "@/lib/utils/dates";
 import { formatearTarimas } from "@/lib/utils/tarimas";
-import { formatearNumero } from "@/lib/utils/numeros";
+import { formatearNumero, piezasPorTarima } from "@/lib/utils/numeros";
 import type { FilaEntrada, FilaSalida } from "@/lib/reportes/columnas";
+
+function textoPiezasPorTarima(cajas: number | null, porCaja: number | null): string {
+  const n = piezasPorTarima(cajas, porCaja);
+  return n != null ? formatearNumero(n) : "—";
+}
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 type Tipo = "entrada" | "salida";
@@ -80,6 +85,10 @@ async function generarPdfIndividual(
       { etiqueta: "Presentación", valor: data.presentacion ?? "—" },
       { etiqueta: "Cajas por pallet", valor: data.cajas_por_pallet != null ? formatearNumero(data.cajas_por_pallet) : "—" },
       { etiqueta: "Cantidad por caja", valor: data.cantidad_por_caja != null ? formatearNumero(data.cantidad_por_caja) : "—" },
+    {
+      etiqueta: "Piezas por tarima",
+      valor: textoPiezasPorTarima(data.cajas_por_pallet, data.cantidad_por_caja),
+    },
       { etiqueta: "Categoría", valor: data.categoria_producto ?? "—" },
       { etiqueta: "Lote 1", valor: data.lote_1 ?? "—" },
       { etiqueta: "Lote 2 (SAP)", valor: data.lote_2 ?? "—" },
@@ -132,7 +141,10 @@ async function generarPdfIndividual(
     { etiqueta: "Lote", valor: data.lotes?.codigo_lote ?? "—" },
     { etiqueta: "SKU", valor: data.productos?.sku ?? "—" },
     { etiqueta: "Piezas", valor: formatearNumero(data.cantidad_piezas) },
-    { etiqueta: "Tarimas", valor: formatearNumero(data.cantidad_tarimas) },
+    {
+      etiqueta: "Tarimas",
+      valor: data.cantidad_tarimas === 0 ? "0 (piezas sueltas: la tarima se queda en bodega)" : formatearNumero(data.cantidad_tarimas),
+    },
     {
       etiqueta: "Identificador de tarimas",
       valor:
@@ -150,6 +162,10 @@ async function generarPdfIndividual(
     { etiqueta: "Presentación", valor: data.presentacion ?? "—" },
     { etiqueta: "Cajas por pallet", valor: data.cajas_por_pallet != null ? formatearNumero(data.cajas_por_pallet) : "—" },
     { etiqueta: "Cantidad por caja", valor: data.cantidad_por_caja != null ? formatearNumero(data.cantidad_por_caja) : "—" },
+    {
+      etiqueta: "Piezas por tarima",
+      valor: textoPiezasPorTarima(data.cajas_por_pallet, data.cantidad_por_caja),
+    },
     { etiqueta: "Categoría", valor: data.categoria_producto ?? "—" },
     { etiqueta: "Lote 1", valor: data.lote_1 ?? "—" },
     { etiqueta: "Lote 2 (SAP)", valor: data.lote_2 ?? "—" },

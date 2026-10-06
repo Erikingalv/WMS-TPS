@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Input, Select } from "@/components/ui/Field";
 import { diasDesde } from "@/lib/utils/dates";
+import { formatearNumero, piezasPorTarima } from "@/lib/utils/numeros";
 import type { ExistenciaDisponible } from "@/lib/inventario";
 import type { Cliente, Producto } from "@/lib/types/database";
 
@@ -15,6 +16,9 @@ export type LineaSalida = {
   ubicacion_id: string;
   cantidad_piezas: number | null;
   cantidad_tarimas: number | null;
+  // Salen solo piezas sueltas (muestras, una caja abierta...): 0 tarimas, la
+  // tarima se queda en bodega y se sigue cobrando su almacenaje.
+  solo_piezas: boolean;
   tarima_numeros_texto: string;
   piezas_tarima_parcial: number | null;
   numero_tarima_parcial: number | null;
@@ -41,6 +45,7 @@ export function lineaSalidaVacia(): LineaSalida {
     ubicacion_id: "",
     cantidad_piezas: null,
     cantidad_tarimas: null,
+    solo_piezas: false,
     tarima_numeros_texto: "",
     piezas_tarima_parcial: null,
     numero_tarima_parcial: null,
@@ -126,6 +131,8 @@ export function SalidaLineaCard({
         .sort((a, b) => new Date(a.fecha_ingreso).getTime() - new Date(b.fecha_ingreso).getTime()),
     [existencias, linea.producto_id, blSeleccionado]
   );
+
+  const piezasTarima = piezasPorTarima(linea.cajas_por_pallet, linea.cantidad_por_caja);
 
   const seleccionada = existenciasDelProducto.find((e) => `${e.lote_id}:${e.ubicacion_id}` === linea.combo);
 
@@ -251,30 +258,76 @@ export function SalidaLineaCard({
         ))}
       </Select>
 
+      <label className="flex items-start gap-3 rounded-lg border border-line p-3 text-sm text-ink">
+        <input
+          type="checkbox"
+          className="mt-0.5 size-4 accent-[var(--accent)]"
+          checked={linea.solo_piezas}
+          disabled={!linea.combo}
+          onChange={(e) =>
+            onChange(
+              e.target.checked
+                ? { solo_piezas: true, cantidad_tarimas: 0, tarima_numeros_texto: "", piezas_tarima_parcial: null }
+                : { solo_piezas: false, cantidad_tarimas: null, numero_tarima_parcial: null }
+            )
+          }
+        />
+        <span>
+          <span className="font-medium">Salen solo piezas sueltas (muestras, una caja abierta…)</span>
+          <span className="block text-xs text-ink-faint">
+            La tarima se queda en bodega: solo se descuentan piezas y el almacenaje de la tarima se sigue cobrando.
+          </span>
+        </span>
+      </label>
+
       <div className="grid gap-5 sm:grid-cols-2">
         <Input
           id={`piezas-${indice}`}
-          label="Piezas"
+          label={linea.solo_piezas ? "Piezas sueltas que salen" : "Piezas"}
           type="number"
           min="1"
           max={seleccionada?.cantidad_piezas}
           required
-          hint={seleccionada ? `Disponible: ${seleccionada.cantidad_piezas}` : undefined}
+          hint={seleccionada ? `Disponible: ${formatearNumero(seleccionada.cantidad_piezas)}` : undefined}
           value={linea.cantidad_piezas ?? ""}
           onChange={(e) => onChange({ cantidad_piezas: e.target.value === "" ? null : Number(e.target.value) })}
         />
-        <Input
-          id={`tarimas-${indice}`}
-          label="Tarimas"
-          type="number"
-          min="1"
-          max={seleccionada?.cantidad_tarimas}
-          required
-          hint={seleccionada ? `Disponible: ${seleccionada.cantidad_tarimas}` : undefined}
-          value={linea.cantidad_tarimas ?? ""}
-          onChange={(e) => onChange({ cantidad_tarimas: e.target.value === "" ? null : Number(e.target.value) })}
-        />
+        {linea.solo_piezas ? (
+          <Input
+            id={`tarima-origen-${indice}`}
+            label="Tarima de la que salen (opcional)"
+            type="number"
+            min="1"
+            hint={
+              seleccionada?.tarima_desde != null
+                ? `Rango del lote: ${seleccionada.tarima_desde}-${seleccionada.tarima_hasta}`
+                : "Número de la tarima a la que se le abrió la caja"
+            }
+            value={linea.numero_tarima_parcial ?? ""}
+            onChange={(e) => onChange({ numero_tarima_parcial: e.target.value === "" ? null : Number(e.target.value) })}
+          />
+        ) : (
+          <Input
+            id={`tarimas-${indice}`}
+            label="Tarimas"
+            type="number"
+            min="1"
+            max={seleccionada?.cantidad_tarimas}
+            required
+            hint={seleccionada ? `Disponible: ${formatearNumero(seleccionada.cantidad_tarimas)}` : undefined}
+            value={linea.cantidad_tarimas ?? ""}
+            onChange={(e) => onChange({ cantidad_tarimas: e.target.value === "" ? null : Number(e.target.value) })}
+          />
+        )}
       </div>
+
+      {piezasTarima != null && (
+        <p className="rounded-lg bg-accent-soft px-3.5 py-2.5 text-sm text-ink">
+          Una tarima completa = <strong>{formatearNumero(piezasTarima)} piezas</strong> (
+          {formatearNumero(linea.cajas_por_pallet ?? 0)} cajas × {formatearNumero(linea.cantidad_por_caja ?? 0)} piezas por caja)
+          {linea.solo_piezas ? ` · una caja = ${formatearNumero(linea.cantidad_por_caja ?? 0)} piezas` : ""}
+        </p>
+      )}
 
       <div className="flex flex-col gap-3 rounded-lg border border-line p-4">
         <div>
@@ -284,6 +337,7 @@ export function SalidaLineaCard({
             necesario.
           </p>
         </div>
+        {!linea.solo_piezas && (
         <Input
           id={`tarima-numeros-${indice}`}
           label="Identificador de tarimas que salen"
@@ -295,6 +349,8 @@ export function SalidaLineaCard({
               : `Admite números sueltos y/o rangos mezclados, ej. "1,5,15-17"`
           }
         />
+        )}
+        {!linea.solo_piezas && (
         <div className="grid gap-5 sm:grid-cols-2">
           <Input
             id={`piezas-parcial-${indice}`}
@@ -314,6 +370,7 @@ export function SalidaLineaCard({
             onChange={(e) => onChange({ numero_tarima_parcial: e.target.value === "" ? null : Number(e.target.value) })}
           />
         </div>
+        )}
         <div className="grid gap-5 sm:grid-cols-2">
           <Input
             id={`cajas-pallet-${indice}`}
@@ -332,6 +389,14 @@ export function SalidaLineaCard({
             onChange={(e) => onChange({ cantidad_por_caja: e.target.value === "" ? null : Number(e.target.value) })}
           />
         </div>
+        {piezasTarima != null && (
+          <Input
+            id={`piezas-por-tarima-${indice}`}
+            label="Piezas por tarima (cajas por pallet × cantidad por caja)"
+            readOnly
+            value={formatearNumero(piezasTarima)}
+          />
+        )}
         <div className="grid gap-5 sm:grid-cols-2">
           <Input
             id={`categoria-${indice}`}

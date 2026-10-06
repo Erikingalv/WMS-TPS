@@ -93,7 +93,8 @@ export default async function EditarSalidaPage({
             label="Tarimas"
             name="cantidad_tarimas"
             type="number"
-            min="1"
+            min="0"
+            hint="0 = salida de piezas sueltas (la tarima se queda en bodega)"
             required
             defaultValue={salida.cantidad_tarimas}
           />
