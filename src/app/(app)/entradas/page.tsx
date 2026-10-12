@@ -5,13 +5,18 @@ import { getUsuarioActual } from "@/lib/auth/session";
 import { PUEDE_EDITAR_CLIENTES, tienePermiso } from "@/lib/auth/permisos";
 import { Badge } from "@/components/ui/Badge";
 import { ButtonLink } from "@/components/ui/Button";
-import { formatearFecha, formatearFechaHora } from "@/lib/utils/dates";
+import { formatearFechaHora } from "@/lib/utils/dates";
 import { formatearNumero } from "@/lib/utils/numeros";
+import { FiltrosMovimientos } from "@/components/ui/FiltrosMovimientos";
+import { filtrarPorMovimiento, hayFiltros, type FiltrosMovimientos as Filtros } from "@/lib/filtrosMovimientos";
 import type { Cliente, Producto, Lote, Ubicacion } from "@/lib/types/database";
 
 type EntradaFila = {
   id: string;
   grupo_id: string;
+  cliente_id: string;
+  producto_id: string;
+  ubicacion_id: string;
   fecha: string;
   cantidad_piezas: number;
   cantidad_tarimas: number;
@@ -75,25 +80,32 @@ function agruparPorMovimiento(entradas: EntradaFila[]): GrupoEntrada[] {
 export default async function EntradasPage({
   searchParams,
 }: {
-  searchParams: Promise<{ desde?: string; hasta?: string }>;
+  searchParams: Promise<Filtros>;
 }) {
-  const { desde, hasta } = await searchParams;
+  const filtros = await searchParams;
+  const { desde, hasta } = filtros;
   const supabase = await createClient();
   const usuario = await getUsuarioActual();
   const puedeCrear = usuario ? tienePermiso(usuario.rol, PUEDE_EDITAR_CLIENTES) : false;
-  const filtrado = Boolean(desde || hasta);
+  const filtrado = hayFiltros(filtros);
 
   let query = supabase
     .from("entradas")
     .select(
-      "id, grupo_id, fecha, cantidad_piezas, cantidad_tarimas, numero_bl, clientes(nombre), productos(nombre, sku), lotes(codigo_lote), ubicaciones(codigo)"
+      "id, grupo_id, cliente_id, producto_id, ubicacion_id, fecha, cantidad_piezas, cantidad_tarimas, numero_bl, clientes(nombre), productos(nombre, sku), lotes(codigo_lote), ubicaciones(codigo)"
     )
     .order("fecha", { ascending: false });
   if (desde) query = query.gte("fecha", desde);
   if (hasta) query = query.lte("fecha", `${hasta}T23:59:59`);
-  if (!filtrado) query = query.limit(200);
-  const { data } = await query;
-  const entradas = (data ?? []) as unknown as EntradaFila[];
+  query = query.limit(filtrado ? 1000 : 200);
+
+  const [{ data }, { data: clientes }, { data: productos }, { data: ubicaciones }] = await Promise.all([
+    query,
+    supabase.from("clientes").select("id, nombre").eq("activo", true).order("nombre"),
+    supabase.from("productos").select("id, nombre").eq("activo", true).order("nombre"),
+    supabase.from("ubicaciones").select("id, codigo").eq("activo", true).order("codigo"),
+  ]);
+  const entradas = filtrarPorMovimiento((data ?? []) as unknown as EntradaFila[], filtros);
   const movimientos = agruparPorMovimiento(entradas).sort(
     (a, b) => new Date(b.fecha).getTime() - new Date(a.fecha).getTime()
   );
@@ -104,9 +116,7 @@ export default async function EntradasPage({
         <div>
           <h1 className="text-2xl font-semibold text-ink">Entradas</h1>
           <p className="mt-1 text-sm text-ink-soft">
-            {filtrado
-              ? `Mostrando entradas ${desde ? `desde ${formatearFecha(desde)}` : ""}${hasta ? ` hasta ${formatearFecha(hasta)}` : ""} · `
-              : "Últimos movimientos"}
+            {filtrado ? "Mostrando resultados filtrados · " : "Últimos movimientos"}
             {filtrado && (
               <Link href="/entradas" className="text-accent hover:underline">
                 ver todas
@@ -120,6 +130,15 @@ export default async function EntradasPage({
           </ButtonLink>
         )}
       </div>
+
+      <FiltrosMovimientos
+        rutaLimpiar="/entradas"
+        filtros={filtros}
+        clientes={clientes ?? []}
+        productos={productos ?? []}
+        ubicaciones={ubicaciones ?? []}
+        etiquetaUbicacion="Ubicación"
+      />
 
       <div className="overflow-x-auto rounded-xl border border-line bg-paper-raised">
         <table className="w-full min-w-[920px] text-sm">
@@ -165,7 +184,7 @@ export default async function EntradasPage({
             {movimientos.length === 0 && (
               <tr>
                 <td colSpan={8} className="px-4 py-10 text-center text-ink-faint">
-                  Aún no hay entradas registradas.
+                  {filtrado ? "Sin entradas que coincidan con el filtro." : "Aún no hay entradas registradas."}
                 </td>
               </tr>
             )}
