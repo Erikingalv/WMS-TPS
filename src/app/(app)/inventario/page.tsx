@@ -199,7 +199,7 @@ export default async function InventarioPage({
                           href={`/lotes/${f.lotes.codigo_lote}/traspaso`}
                           className="whitespace-nowrap text-xs text-accent hover:underline"
                         >
-                          Traspasar
+                          Cambiar cliente / ubicación
                         </a>
                       )}
                     </td>

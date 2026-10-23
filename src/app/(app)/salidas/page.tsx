@@ -94,6 +94,7 @@ export default async function SalidasPage({
     .select(
       "id, grupo_id, cliente_id, producto_id, ubicacion_id, fecha, cantidad_piezas, cantidad_tarimas, destino, numero_bl, clientes(nombre), productos(nombre, sku), lotes(codigo_lote)"
     )
+    .eq("es_traspaso", false) // los cambios de cliente no son movimientos reales
     .order("fecha", { ascending: false });
   if (desde) query = query.gte("fecha", desde);
   if (hasta) query = query.lte("fecha", `${hasta}T23:59:59`);

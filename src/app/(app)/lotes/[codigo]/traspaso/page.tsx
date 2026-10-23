@@ -60,16 +60,17 @@ export default async function TraspasoLotePage({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-ink">Traspasar material</h1>
+        <h1 className="text-2xl font-semibold text-ink">Cambiar cliente o ubicación del material</h1>
         <p className="mt-1 text-sm text-ink-soft">
           <span className="font-mono">{lote.codigo_lote}</span> · {lote.productos?.nombre ?? "—"} (
           {lote.productos?.sku ?? "—"}) · cliente actual:{" "}
           <strong>{lote.productos?.clientes?.nombre ?? "—"}</strong>
         </p>
         <p className="mt-1 max-w-2xl text-xs text-ink-faint">
-          Elige cuántas tarimas pasan (todas o solo algunas), a qué cliente y/o a qué ubicación. Al cliente
-          anterior se le cobra hasta el día anterior a la fecha del traspaso y al nuevo desde esa fecha; los
-          cobros de días pasados no cambian.
+          Indica qué tarimas cambiaron de cliente (todas o solo algunas) y <strong>a partir de qué fecha</strong>
+          son del cliente nuevo: desde ese día se le cobra almacenaje al cliente nuevo y al anterior hasta el día
+          anterior. La fecha puede ser pasada; los cobros de días anteriores no cambian. Esas tarimas quedan en el
+          inventario del cliente nuevo como un lote propio (con el mismo BL); no cuenta como entrada ni salida.
         </p>
       </div>
 

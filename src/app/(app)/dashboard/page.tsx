@@ -29,8 +29,8 @@ export default async function DashboardPage() {
     supabase.from("clientes").select("*", { count: "exact", head: true }).eq("activo", true),
     supabase.from("ubicaciones").select("capacidad_max_tarimas").eq("activo", true),
     supabase.from("inventario_lote_ubicacion").select("cantidad_piezas, cantidad_tarimas"),
-    supabase.from("entradas").select("*", { count: "exact", head: true }).gte("fecha", hoy),
-    supabase.from("salidas").select("*", { count: "exact", head: true }).gte("fecha", hoy),
+    supabase.from("entradas").select("*", { count: "exact", head: true }).eq("es_traspaso", false).gte("fecha", hoy),
+    supabase.from("salidas").select("*", { count: "exact", head: true }).eq("es_traspaso", false).gte("fecha", hoy),
     supabase.from("lotes").select("fecha_ingreso").eq("estado", "activo"),
     supabase.from("alertas").select("*", { count: "exact", head: true }).eq("atendida", false),
   ]);

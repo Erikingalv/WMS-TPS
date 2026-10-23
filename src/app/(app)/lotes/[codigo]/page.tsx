@@ -147,16 +147,20 @@ export default async function LoteDetallePage({
 
   const movimientos: Movimiento[] = [
     ...(entradas ?? []).map((e) => ({
-      tipo: "entrada" as const,
+      tipo: (e.es_traspaso ? "traspaso" : "entrada") as "entrada" | "traspaso",
       id: e.id,
       fecha: e.fecha,
-      detalle: `Entrada de ${formatearNumero(e.cantidad_piezas)} pz / ${formatearNumero(e.cantidad_tarimas)} tar a ${mapaUbicaciones.get(e.ubicacion_id) ?? "?"}${detalleLogistico(e)}`,
+      detalle: e.es_traspaso
+        ? `Cambio de cliente: ${formatearNumero(e.cantidad_piezas)} pz / ${formatearNumero(e.cantidad_tarimas)} tar de este lote pasaron a este cliente desde esta fecha (${e.observaciones ?? ""})`
+        : `Entrada de ${formatearNumero(e.cantidad_piezas)} pz / ${formatearNumero(e.cantidad_tarimas)} tar a ${mapaUbicaciones.get(e.ubicacion_id) ?? "?"}${detalleLogistico(e)}`,
     })),
     ...(salidas ?? []).map((s) => ({
-      tipo: "salida" as const,
+      tipo: (s.es_traspaso ? "traspaso" : "salida") as "salida" | "traspaso",
       id: s.id,
       fecha: s.fecha,
-      detalle: `Salida de ${formatearNumero(s.cantidad_piezas)} pz / ${formatearNumero(s.cantidad_tarimas)} tar desde ${mapaUbicaciones.get(s.ubicacion_id) ?? "?"}${s.destino ? ` hacia ${s.destino}` : ""}${detalleLogistico(s)}`,
+      detalle: s.es_traspaso
+        ? `Cambio de cliente: ${formatearNumero(s.cantidad_piezas)} pz / ${formatearNumero(s.cantidad_tarimas)} tar de este lote pasaron a otro cliente desde esta fecha (${s.destino ?? ""})`
+        : `Salida de ${formatearNumero(s.cantidad_piezas)} pz / ${formatearNumero(s.cantidad_tarimas)} tar desde ${mapaUbicaciones.get(s.ubicacion_id) ?? "?"}${s.destino ? ` hacia ${s.destino}` : ""}${detalleLogistico(s)}`,
     })),
     ...(movimientosInternos ?? []).map((m) => ({
       tipo: "movimiento" as const,
@@ -180,7 +184,7 @@ export default async function LoteDetallePage({
       <AbrirComprobante comprobante={comprobante ?? null} />
       {traspaso && (
         <p className="rounded-lg bg-ok-soft px-3.5 py-2.5 text-sm text-ok">
-          Traspaso guardado. Inventario, reportes y cobro actualizados.
+          Cambio guardado. Inventario, reportes y cobro actualizados.
         </p>
       )}
       {corregido && (
@@ -204,7 +208,7 @@ export default async function LoteDetallePage({
         </div>
         {puedeCorregir && lote.estado === "activo" && (
           <ButtonLink href={`/lotes/${lote.codigo_lote}/traspaso`} variant="secondary">
-            <ArrowRightLeft size={16} /> Traspasar cliente / ubicación
+            <ArrowRightLeft size={16} /> Cambiar cliente / ubicación
           </ButtonLink>
         )}
       </div>
@@ -249,7 +253,7 @@ export default async function LoteDetallePage({
                     <Badge
                       tone={m.tipo === "entrada" ? "ok" : m.tipo === "salida" ? "crit" : "info"}
                     >
-                      {m.tipo}
+                      {m.tipo === "traspaso" ? "cambio de cliente" : m.tipo}
                     </Badge>
                     <div className="flex-1">
                       <p className="text-ink">{m.detalle}</p>

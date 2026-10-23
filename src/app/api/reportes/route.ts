@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
       .select(
         "*, clientes(nombre), productos(nombre, sku), lotes(codigo_lote, estado), ubicaciones(codigo), recibio:recibio_usuario_id(nombre)"
       )
+      .eq("es_traspaso", false)
       .order("fecha", { ascending: false })
       .limit(1000);
     if (clienteId) query = query.eq("cliente_id", clienteId);
@@ -104,6 +105,7 @@ export async function GET(request: NextRequest) {
       .select(
         "*, clientes(nombre), productos(nombre, sku), lotes(codigo_lote, estado), ubicaciones(codigo), autorizo:autorizo_usuario_id(nombre)"
       )
+      .eq("es_traspaso", false)
       .order("fecha", { ascending: false })
       .limit(1000);
     if (clienteId) query = query.eq("cliente_id", clienteId);

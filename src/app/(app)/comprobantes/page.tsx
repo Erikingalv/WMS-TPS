@@ -94,6 +94,7 @@ export default async function ComprobantesPage({
           .select(
             "id, grupo_id, fecha, cantidad_piezas, cantidad_tarimas, firma_digital_url, numero_bl, clientes(nombre), productos(nombre), lotes(codigo_lote)"
           )
+          .eq("es_traspaso", false)
           .order("fecha", { ascending: false })
           .limit(300),
     tipo === "entradas"
@@ -103,6 +104,7 @@ export default async function ComprobantesPage({
           .select(
             "id, grupo_id, fecha, cantidad_piezas, cantidad_tarimas, firma_digital_url, numero_bl, clientes(nombre), productos(nombre), lotes(codigo_lote)"
           )
+          .eq("es_traspaso", false)
           .order("fecha", { ascending: false })
           .limit(300),
   ]);

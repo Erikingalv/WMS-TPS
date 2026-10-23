@@ -160,12 +160,12 @@ export function TraspasoForm({
 
       {cambiaCliente && (
         <Input
-          label="Fecha del traspaso"
+          label="¿A partir de qué fecha es del cliente nuevo?"
           name="fecha"
           type="date"
           max={hoy}
           defaultValue={hoy}
-          hint="Desde este día se le cobra al cliente nuevo; al anterior, hasta el día anterior"
+          hint="Desde este día se le cobra almacenaje al cliente nuevo; al anterior, hasta el día anterior. Puede ser una fecha pasada"
         />
       )}
 
@@ -175,12 +175,12 @@ export function TraspasoForm({
         <p className="rounded-lg bg-accent-soft px-3.5 py-2.5 text-sm text-ink">
           {pasaTodoDeEsaUbicacion && existencias.length === 1
             ? "Pasa el lote completo al cliente nuevo."
-            : `Pasan ${formatearNumero(t || 0)} tarima(s) al cliente nuevo y el resto se queda con el cliente actual: saldrá del lote actual y entrará a un lote nuevo del cliente nuevo.`}
+            : `Pasan ${formatearNumero(t || 0)} tarima(s) al cliente nuevo y el resto se queda con el cliente actual: se separan del lote actual y quedan como un lote propio del cliente nuevo (sin contar como entrada ni salida).`}
         </p>
       )}
 
       <div className="flex gap-3">
-        <SubmitButton pendingLabel="Guardando…">Guardar traspaso</SubmitButton>
+        <SubmitButton pendingLabel="Guardando…">Guardar cambio</SubmitButton>
         <ButtonLink href={volverHref} variant="secondary">
           Cancelar
         </ButtonLink>
