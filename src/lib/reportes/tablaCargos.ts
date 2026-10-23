@@ -45,7 +45,10 @@ function conIva(total: number): { iva: number; totalConIva: number } {
 }
 
 const fechaDiaMes = (clave: string) =>
-  new Date(`${clave}T12:00:00`).toLocaleDateString("es-MX", { day: "2-digit", month: "short" });
+  new Date(`${clave}T12:00:00`)
+    .toLocaleDateString("es-MX", { day: "2-digit", month: "short" })
+    .replace(/[-.]/g, " ")
+    .trim();
 
 // El desglose de cómo se llegó al monto de un lote, una operación por línea:
 // "20 tar × 63 d × $7.50 = $9,450.00". Si salieron tarimas a la mitad del
