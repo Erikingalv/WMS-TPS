@@ -184,6 +184,19 @@ export type MovimientoInterno = {
   created_at: string;
 };
 
+export type TraspasoCliente = {
+  id: string;
+  lote_id: string;
+  fecha: string; // YYYY-MM-DD — el cliente destino es el dueño desde este día
+  cliente_origen_id: string;
+  cliente_destino_id: string;
+  producto_origen_id: string;
+  producto_destino_id: string;
+  motivo: string | null;
+  usuario_id: string;
+  created_at: string;
+};
+
 export type TipoDocumento =
   | "factura"
   | "carta_porte"
@@ -391,6 +404,11 @@ export type Database = {
         Omit<MovimientoInterno, "id" | "created_at">,
         Partial<Omit<MovimientoInterno, "id">>
       >;
+      traspasos_cliente: TableDef<
+        TraspasoCliente,
+        Omit<TraspasoCliente, "id" | "created_at">,
+        Partial<Omit<TraspasoCliente, "id">>
+      >;
       archivos_adjuntos: TableDef<
         ArchivoAdjunto,
         Omit<ArchivoAdjunto, "id" | "created_at">,
@@ -584,6 +602,17 @@ export type Database = {
           p_motivo: string | null;
         };
         Returns: MovimientoInterno;
+      };
+      traspasar_lote: {
+        Args: {
+          p_lote_id: string;
+          p_cliente_destino_id?: string | null;
+          p_fecha?: string | null;
+          p_ubicacion_origen_id?: string | null;
+          p_ubicacion_destino_id?: string | null;
+          p_motivo?: string | null;
+        };
+        Returns: { cliente_cambiado: boolean; ubicacion_cambiada: boolean };
       };
       registrar_reserva: {
         Args: {

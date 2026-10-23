@@ -20,6 +20,7 @@ export type SegmentoAlmacenaje = {
 };
 
 export type CargoPeriodoLinea = {
+  cliente_id: string;
   lote_id: string;
   codigo_lote: string;
   cliente: string;
@@ -46,6 +47,12 @@ export type CargoPeriodoLinea = {
   tarifa_texto: string | null; // la tarifa en pesos, ej. "$7.50 por tarima por día"
   maniobra_entrada_unitaria: number | null;
   maniobra_salida_unitaria: number | null;
+  // Traspaso de cliente: un lote que cambió de cliente genera una línea por
+  // cada cliente que lo tuvo en el periodo, cada una con sus propios días.
+  fecha_inicio_cliente: string; // desde cuándo es de este cliente (ISO)
+  viene_de_cliente: string | null; // nombre del cliente anterior, si es traspaso
+  pasa_a_cliente: string | null; // nombre del cliente siguiente, si lo traspasaron
+  fecha_traspaso_salida: string | null; // fecha (YYYY-MM-DD) en que pasó al siguiente cliente
 };
 
 // La tarifa en pesos, legible: "$7.50 por tarima por día", o por tramos si
@@ -103,16 +110,20 @@ export async function calcularCargosPeriodo(
     .from("lotes")
     .select("id, codigo_lote, fecha_ingreso, tarimas_inicial, producto_id, productos(nombre, sku, cliente_id, clientes(nombre)), entradas(numero_bl)")
     .lte("fecha_ingreso", `${hasta}T23:59:59`);
-  let lotes = (lotesRaw ?? []) as unknown as LoteConProducto[];
-  if (clienteId) lotes = lotes.filter((l) => l.productos?.cliente_id === clienteId);
+  const lotes = (lotesRaw ?? []) as unknown as LoteConProducto[];
   if (lotes.length === 0) return [];
 
   const loteIds = lotes.map((l) => l.id);
-  const { data: salidasRaw } = await supabase
-    .from("salidas")
-    .select("lote_id, fecha, cantidad_tarimas")
-    .in("lote_id", loteIds)
-    .order("fecha");
+  const [{ data: salidasRaw }, { data: traspasosRaw }, { data: clientesRaw }] = await Promise.all([
+    supabase.from("salidas").select("lote_id, fecha, cantidad_tarimas").in("lote_id", loteIds).order("fecha"),
+    supabase
+      .from("traspasos_cliente")
+      .select("lote_id, fecha, cliente_origen_id, cliente_destino_id, producto_origen_id, producto_destino_id")
+      .in("lote_id", loteIds)
+      .order("fecha"),
+    supabase.from("clientes").select("id, nombre"),
+  ]);
+
   const salidasPorLote = new Map<string, { fecha: string; cantidad_tarimas: number }[]>();
   (salidasRaw ?? []).forEach((s) => {
     const lista = salidasPorLote.get(s.lote_id) ?? [];
@@ -120,7 +131,33 @@ export async function calcularCargosPeriodo(
     salidasPorLote.set(s.lote_id, lista);
   });
 
-  const clienteIds = [...new Set(lotes.map((l) => l.productos?.cliente_id).filter(Boolean))] as string[];
+  type Traspaso = NonNullable<typeof traspasosRaw>[number];
+  const traspasosPorLote = new Map<string, Traspaso[]>();
+  (traspasosRaw ?? []).forEach((t) => {
+    const lista = traspasosPorLote.get(t.lote_id) ?? [];
+    lista.push(t);
+    traspasosPorLote.set(t.lote_id, lista);
+  });
+
+  const nombreCliente = new Map((clientesRaw ?? []).map((c) => [c.id, c.nombre]));
+
+  const productoIds = [
+    ...new Set((traspasosRaw ?? []).flatMap((t) => [t.producto_origen_id, t.producto_destino_id])),
+  ];
+  const { data: productosRaw } =
+    productoIds.length > 0
+      ? await supabase.from("productos").select("id, nombre, sku").in("id", productoIds)
+      : { data: [] as { id: string; nombre: string; sku: string }[] };
+  const productoPorId = new Map((productosRaw ?? []).map((p) => [p.id, p]));
+
+  // Clientes que pueden tener tarifa en este reporte: los actuales y los
+  // que alguna vez tuvieron un lote traspasado.
+  const clienteIds = [
+    ...new Set([
+      ...(lotes.map((l) => l.productos?.cliente_id).filter(Boolean) as string[]),
+      ...(traspasosRaw ?? []).flatMap((t) => [t.cliente_origen_id, t.cliente_destino_id]),
+    ]),
+  ];
   const { data: tarifasRaw } = await supabase
     .from("tarifas_almacenaje")
     .select("*")
@@ -141,24 +178,64 @@ export async function calcularCargosPeriodo(
 
   const fechaDesde = new Date(`${desde}T00:00:00`);
   const fechaHasta = new Date(`${hasta}T00:00:00`);
+  const inicioDia = (iso: string) => {
+    const f = new Date(iso);
+    return new Date(f.getFullYear(), f.getMonth(), f.getDate());
+  };
   const lineas: CargoPeriodoLinea[] = [];
 
   for (const lote of lotes) {
-    const clienteIdLote = lote.productos?.cliente_id;
-    const tarifa = clienteIdLote ? tarifaPorCliente.get(clienteIdLote) : undefined;
-    const escalones = tarifa ? (escalonesPorTarifa.get(tarifa.id) ?? []) : [];
     const salidas = salidasPorLote.get(lote.id) ?? [];
-    const fechaIngreso = new Date(lote.fecha_ingreso);
-    const fechaIngresoDia = new Date(
-      fechaIngreso.getFullYear(),
-      fechaIngreso.getMonth(),
-      fechaIngreso.getDate()
-    );
+    const traspasos = traspasosPorLote.get(lote.id) ?? [];
+    const fechaIngresoDia = inicioDia(lote.fecha_ingreso);
 
-    let costoAlmacenaje = 0;
-    let diasConExistencia = 0;
-    let tarimasDia = 0;
-    const segmentos: SegmentoAlmacenaje[] = [];
+    // Quién es el dueño del lote en cada tramo de su historia: el cliente
+    // original desde la entrada, y uno nuevo desde la fecha de cada
+    // traspaso (ese día ya cuenta para el cliente nuevo).
+    type Tramo = {
+      clienteId: string;
+      productoId: string;
+      desde: Date;
+      vieneDe: string | null;
+      costoAlmacenaje: number;
+      dias: number;
+      tarimasDia: number;
+      segmentos: SegmentoAlmacenaje[];
+      tarimasEntrada: number;
+      costoManiobraEntrada: number;
+      tarimasSalida: number;
+      costoManiobraSalida: number;
+    };
+    const nuevoTramo = (clienteId: string, productoId: string, desdeDia: Date, vieneDe: string | null): Tramo => ({
+      clienteId,
+      productoId,
+      desde: desdeDia,
+      vieneDe,
+      costoAlmacenaje: 0,
+      dias: 0,
+      tarimasDia: 0,
+      segmentos: [],
+      tarimasEntrada: 0,
+      costoManiobraEntrada: 0,
+      tarimasSalida: 0,
+      costoManiobraSalida: 0,
+    });
+    const tramos: Tramo[] = [];
+    if (traspasos.length === 0) {
+      tramos.push(nuevoTramo(lote.productos?.cliente_id ?? "", lote.producto_id, fechaIngresoDia, null));
+    } else {
+      tramos.push(nuevoTramo(traspasos[0].cliente_origen_id, traspasos[0].producto_origen_id, fechaIngresoDia, null));
+      traspasos.forEach((t) =>
+        tramos.push(
+          nuevoTramo(t.cliente_destino_id, t.producto_destino_id, new Date(`${t.fecha}T00:00:00`), t.cliente_origen_id)
+        )
+      );
+    }
+    const tramoDelDia = (d: Date): Tramo => {
+      let actual = tramos[0];
+      for (const t of tramos) if (t.desde <= d) actual = t;
+      return actual;
+    };
 
     for (let d = new Date(fechaDesde); d <= fechaHasta; d.setDate(d.getDate() + 1)) {
       if (d < fechaIngresoDia) continue;
@@ -168,24 +245,30 @@ export async function calcularCargosPeriodo(
       const tarimasEseDia = lote.tarimas_inicial - salidasAntes;
       if (tarimasEseDia <= 0) continue;
 
-      diasConExistencia += 1;
-      const edad = diasEntre(fechaIngresoDia, d);
+      const tramo = tramoDelDia(d);
+      const tarifa = tarifaPorCliente.get(tramo.clienteId);
+      const escalones = tarifa ? (escalonesPorTarifa.get(tarifa.id) ?? []) : [];
+
+      tramo.dias += 1;
+      // La antigüedad (para los escalones de la tarifa) cuenta desde que el
+      // material es de ese cliente: la entrada, o la fecha del traspaso.
+      const edad = diasEntre(tramo.desde, d);
       const escalon = escalones.find(
         (e) => edad >= e.dia_inicio && (e.dia_fin == null || edad <= e.dia_fin)
       );
       const costoDia = escalon && !escalon.es_gratis ? tarimasEseDia * escalon.costo_por_tarima : 0;
-      costoAlmacenaje += costoDia;
-      tarimasDia += tarimasEseDia;
+      tramo.costoAlmacenaje += costoDia;
+      tramo.tarimasDia += tarimasEseDia;
 
       const tarifaDia = escalon ? (escalon.es_gratis ? 0 : escalon.costo_por_tarima) : null;
       const gratisDia = escalon?.es_gratis === true;
-      const ultimo = segmentos[segmentos.length - 1];
+      const ultimo = tramo.segmentos[tramo.segmentos.length - 1];
       if (ultimo && ultimo.tarimas === tarimasEseDia && ultimo.tarifa === tarifaDia && ultimo.gratis === gratisDia) {
         ultimo.dias += 1;
         ultimo.hasta = claveDia(d);
         ultimo.subtotal = Math.round((ultimo.subtotal + costoDia) * 100) / 100;
       } else {
-        segmentos.push({
+        tramo.segmentos.push({
           tarimas: tarimasEseDia,
           dias: 1,
           tarifa: tarifaDia,
@@ -197,60 +280,74 @@ export async function calcularCargosPeriodo(
       }
     }
 
-    let tarimasEntrada = 0;
-    let costoManiobraEntrada = 0;
+    // Maniobra de entrada: al cliente al que se le recibió el material.
     if (fechaIngresoDia >= fechaDesde && fechaIngresoDia <= fechaHasta) {
-      tarimasEntrada = lote.tarimas_inicial;
-      costoManiobraEntrada = tarifa ? tarimasEntrada * tarifa.costo_maniobra_entrada : 0;
+      const tramo = tramos[0];
+      const tarifa = tarifaPorCliente.get(tramo.clienteId);
+      tramo.tarimasEntrada = lote.tarimas_inicial;
+      tramo.costoManiobraEntrada = tarifa ? tramo.tarimasEntrada * tarifa.costo_maniobra_entrada : 0;
     }
 
-    let tarimasSalida = 0;
-    let costoManiobraSalida = 0;
+    // Maniobra de salida: al cliente dueño del lote el día de la salida.
     for (const s of salidas) {
-      const fechaSalidaDia = new Date(s.fecha);
-      const dia = new Date(fechaSalidaDia.getFullYear(), fechaSalidaDia.getMonth(), fechaSalidaDia.getDate());
+      const dia = inicioDia(s.fecha);
       if (dia >= fechaDesde && dia <= fechaHasta) {
-        tarimasSalida += s.cantidad_tarimas;
-        costoManiobraSalida += tarifa ? s.cantidad_tarimas * tarifa.costo_maniobra_salida : 0;
+        const tramo = tramoDelDia(dia);
+        const tarifa = tarifaPorCliente.get(tramo.clienteId);
+        tramo.tarimasSalida += s.cantidad_tarimas;
+        tramo.costoManiobraSalida += tarifa ? s.cantidad_tarimas * tarifa.costo_maniobra_salida : 0;
       }
     }
 
-    const costoTotal = costoAlmacenaje + costoManiobraEntrada + costoManiobraSalida;
-    if (diasConExistencia === 0 && tarimasEntrada === 0 && tarimasSalida === 0) continue;
+    tramos.forEach((tramo, i) => {
+      if (tramo.dias === 0 && tramo.tarimasEntrada === 0 && tramo.tarimasSalida === 0) return;
+      if (clienteId && tramo.clienteId !== clienteId) return;
 
-    lineas.push({
-      lote_id: lote.id,
-      codigo_lote: lote.codigo_lote,
-      cliente: lote.productos?.clientes?.nombre ?? "—",
-      producto: lote.productos?.nombre ?? "—",
-      sku: lote.productos?.sku ?? "—",
-      dias_con_existencia: diasConExistencia,
-      costo_almacenaje: Math.round(costoAlmacenaje * 100) / 100,
-      tarimas_entrada: tarimasEntrada,
-      costo_maniobra_entrada: Math.round(costoManiobraEntrada * 100) / 100,
-      tarimas_salida: tarimasSalida,
-      costo_maniobra_salida: Math.round(costoManiobraSalida * 100) / 100,
-      costo_total: Math.round(costoTotal * 100) / 100,
-      sin_tarifa: !tarifa,
-      tarifa_nombre: tarifa?.nombre ?? null,
-      numero_bl: lote.entradas?.[0]?.numero_bl ?? null,
-      fecha_ingreso: lote.fecha_ingreso,
-      fecha_ultima_salida: salidas.length > 0 ? salidas[salidas.length - 1].fecha : null,
-      tarimas_restantes: Math.max(0, lote.tarimas_inicial - salidas.reduce((sum, x) => sum + x.cantidad_tarimas, 0)),
-      segmentos,
-      tarimas_dia: tarimasDia,
-      tarifa_texto: describirEscalones(escalones),
-      maniobra_entrada_unitaria: tarifa ? tarifa.costo_maniobra_entrada : null,
-      maniobra_salida_unitaria: tarifa ? tarifa.costo_maniobra_salida : null,
+      const tarifa = tarifaPorCliente.get(tramo.clienteId);
+      const escalones = tarifa ? (escalonesPorTarifa.get(tarifa.id) ?? []) : [];
+      const siguiente = tramos[i + 1];
+      const producto = productoPorId.get(tramo.productoId);
+      const costoTotal = tramo.costoAlmacenaje + tramo.costoManiobraEntrada + tramo.costoManiobraSalida;
+
+      lineas.push({
+        cliente_id: tramo.clienteId,
+        lote_id: lote.id,
+        codigo_lote: lote.codigo_lote,
+        cliente: nombreCliente.get(tramo.clienteId) ?? lote.productos?.clientes?.nombre ?? "—",
+        producto: producto?.nombre ?? lote.productos?.nombre ?? "—",
+        sku: producto?.sku ?? lote.productos?.sku ?? "—",
+        dias_con_existencia: tramo.dias,
+        costo_almacenaje: Math.round(tramo.costoAlmacenaje * 100) / 100,
+        tarimas_entrada: tramo.tarimasEntrada,
+        costo_maniobra_entrada: Math.round(tramo.costoManiobraEntrada * 100) / 100,
+        tarimas_salida: tramo.tarimasSalida,
+        costo_maniobra_salida: Math.round(tramo.costoManiobraSalida * 100) / 100,
+        costo_total: Math.round(costoTotal * 100) / 100,
+        sin_tarifa: !tarifa,
+        tarifa_nombre: tarifa?.nombre ?? null,
+        numero_bl: lote.entradas?.[0]?.numero_bl ?? null,
+        fecha_ingreso: lote.fecha_ingreso,
+        fecha_ultima_salida: salidas.length > 0 ? salidas[salidas.length - 1].fecha : null,
+        tarimas_restantes: Math.max(0, lote.tarimas_inicial - salidas.reduce((sum, x) => sum + x.cantidad_tarimas, 0)),
+        segmentos: tramo.segmentos,
+        tarimas_dia: tramo.tarimasDia,
+        tarifa_texto: describirEscalones(escalones),
+        maniobra_entrada_unitaria: tarifa ? tarifa.costo_maniobra_entrada : null,
+        maniobra_salida_unitaria: tarifa ? tarifa.costo_maniobra_salida : null,
+        fecha_inicio_cliente: i === 0 ? lote.fecha_ingreso : `${traspasos[i - 1].fecha}T12:00:00`,
+        viene_de_cliente: tramo.vieneDe ? (nombreCliente.get(tramo.vieneDe) ?? null) : null,
+        pasa_a_cliente: siguiente ? (nombreCliente.get(siguiente.clienteId) ?? null) : null,
+        fecha_traspaso_salida: siguiente ? traspasos[i].fecha : null,
+      });
     });
   }
 
   // Agrupado por cliente (que es como se factura), y dentro de cada uno por
-  // fecha de entrada.
+  // fecha de entrada (o de traspaso, si el lote le llegó por traspaso).
   return lineas.sort(
     (a, b) =>
       a.cliente.localeCompare(b.cliente) ||
-      new Date(a.fecha_ingreso).getTime() - new Date(b.fecha_ingreso).getTime() ||
+      new Date(a.fecha_inicio_cliente).getTime() - new Date(b.fecha_inicio_cliente).getTime() ||
       a.codigo_lote.localeCompare(b.codigo_lote)
   );
 }

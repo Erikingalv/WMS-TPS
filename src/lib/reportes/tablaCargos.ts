@@ -55,6 +55,12 @@ function textoCalculo(l: CargoPeriodoLinea): string {
     return "Sin tarifa configurada: no se calculó cargo (configúrala en /tarifas).";
   }
   const lineas: string[] = [];
+  if (l.viene_de_cliente) {
+    lineas.push(`Traspaso desde ${l.viene_de_cliente}: se cobra a este cliente desde ${fechaDiaMes(l.fecha_inicio_cliente.slice(0, 10))}`);
+  }
+  if (l.pasa_a_cliente && l.fecha_traspaso_salida) {
+    lineas.push(`Traspasado a ${l.pasa_a_cliente} el ${fechaDiaMes(l.fecha_traspaso_salida)}: aquí se cobra hasta el día anterior`);
+  }
   const varios = l.segmentos.length > 1;
   l.segmentos.forEach((seg) => {
     const rango = varios ? ` (${fechaDiaMes(seg.desde)} al ${fechaDiaMes(seg.hasta)})` : "";
@@ -93,7 +99,16 @@ export function construirTablaCargos(lineas: CargoPeriodoLinea[]): {
 } {
   const filas: string[][] = [];
   const fechaCorta = (iso: string) => formatearFecha(iso);
+  // Un lote traspasado de otro cliente "entra" a este cliente en la fecha
+  // del traspaso, no en la de su entrada original.
+  const textoEntrada = (l: (typeof lineas)[number]) =>
+    l.viene_de_cliente
+      ? `${fechaCorta(l.fecha_inicio_cliente)} (traspaso de ${l.viene_de_cliente})`
+      : fechaCorta(l.fecha_ingreso);
   const textoSalida = (l: (typeof lineas)[number]) => {
+    if (l.pasa_a_cliente && l.fecha_traspaso_salida) {
+      return `Traspasado a ${l.pasa_a_cliente} el ${fechaCorta(`${l.fecha_traspaso_salida}T12:00:00`)}`;
+    }
     if (!l.fecha_ultima_salida) return "En bodega";
     return l.tarimas_restantes > 0
       ? `${fechaCorta(l.fecha_ultima_salida)} (parcial, aún hay ${formatearNumero(l.tarimas_restantes)} tar.)`
@@ -147,7 +162,7 @@ export function construirTablaCargos(lineas: CargoPeriodoLinea[]): {
         l.producto,
         l.sku,
         l.numero_bl ?? "—",
-        fechaCorta(l.fecha_ingreso),
+        textoEntrada(l),
         textoSalida(l),
         formatearNumero(l.dias_con_existencia),
         l.sin_tarifa ? "SIN TARIFA" : (l.tarifa_texto ?? "—"),

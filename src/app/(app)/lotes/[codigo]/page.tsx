@@ -1,6 +1,6 @@
 import Image from "next/image";
 import { notFound } from "next/navigation";
-import { Package, FileText, Pencil } from "lucide-react";
+import { Package, FileText, Pencil, ArrowRightLeft } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { urlPublica } from "@/lib/supabase/storage";
 import { generarQrDataUrl } from "@/lib/qr";
@@ -9,6 +9,7 @@ import { puedeCorregirMovimientos } from "@/lib/auth/permisos";
 import { diasDesde, formatearFecha, formatearFechaHora } from "@/lib/utils/dates";
 import { formatearNumero } from "@/lib/utils/numeros";
 import { Badge } from "@/components/ui/Badge";
+import { ButtonLink } from "@/components/ui/Button";
 import { Card } from "@/components/ui/Card";
 import { AbrirComprobante } from "@/components/lotes/AbrirComprobante";
 import { formatearTarimas } from "@/lib/utils/tarimas";
@@ -63,17 +64,18 @@ function detalleLogistico(mov: {
 type Movimiento =
   | { tipo: "entrada"; id: string; fecha: string; detalle: string }
   | { tipo: "salida"; id: string; fecha: string; detalle: string }
-  | { tipo: "movimiento"; id: string; fecha: string; detalle: string };
+  | { tipo: "movimiento"; id: string; fecha: string; detalle: string }
+  | { tipo: "traspaso"; id: string; fecha: string; detalle: string };
 
 export default async function LoteDetallePage({
   params,
   searchParams,
 }: {
   params: Promise<{ codigo: string }>;
-  searchParams: Promise<{ comprobante?: string; corregido?: string }>;
+  searchParams: Promise<{ comprobante?: string; corregido?: string; traspaso?: string }>;
 }) {
   const { codigo } = await params;
-  const { comprobante, corregido } = await searchParams;
+  const { comprobante, corregido, traspaso } = await searchParams;
   const supabase = await createClient();
   const usuario = await getUsuarioActual();
   const puedeCorregir = usuario ? puedeCorregirMovimientos(usuario) : false;
@@ -100,6 +102,8 @@ export default async function LoteDetallePage({
     { data: entradas },
     { data: salidas },
     { data: movimientosInternos },
+    { data: traspasos },
+    { data: clientesTodos },
   ] = await Promise.all([
     supabase
       .from("inventario_lote_ubicacion")
@@ -113,11 +117,15 @@ export default async function LoteDetallePage({
       .select("*")
       .eq("lote_id", lote.id)
       .order("created_at"),
+    supabase.from("traspasos_cliente").select("*").eq("lote_id", lote.id).order("fecha"),
+    supabase.from("clientes").select("id, nombre"),
   ]);
 
   const mapaUbicaciones = new Map(
     (ubicacionesTodas ?? []).map((u: Pick<Ubicacion, "id" | "codigo">) => [u.id, u.codigo])
   );
+
+  const mapaClientes = new Map((clientesTodos ?? []).map((c) => [c.id, c.nombre]));
 
   const entradaIds = (entradas ?? []).map((e) => e.id);
   const salidaIds = (salidas ?? []).map((s) => s.id);
@@ -156,6 +164,12 @@ export default async function LoteDetallePage({
       fecha: m.created_at,
       detalle: `Reubicación de ${formatearNumero(m.cantidad_piezas)} pz / ${formatearNumero(m.cantidad_tarimas)} tar: ${mapaUbicaciones.get(m.ubicacion_origen_id) ?? "?"} → ${mapaUbicaciones.get(m.ubicacion_destino_id) ?? "?"}`,
     })),
+    ...(traspasos ?? []).map((t) => ({
+      tipo: "traspaso" as const,
+      id: t.id,
+      fecha: `${t.fecha}T12:00:00`,
+      detalle: `Traspaso de cliente: ${mapaClientes.get(t.cliente_origen_id) ?? "?"} → ${mapaClientes.get(t.cliente_destino_id) ?? "?"} (el nuevo cliente es el dueño desde esta fecha)${t.motivo ? ` · ${t.motivo}` : ""}`,
+    })),
   ].sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
 
   const dias = diasDesde(lote.fecha_ingreso);
@@ -164,6 +178,11 @@ export default async function LoteDetallePage({
   return (
     <div className="flex flex-col gap-6">
       <AbrirComprobante comprobante={comprobante ?? null} />
+      {traspaso && (
+        <p className="rounded-lg bg-ok-soft px-3.5 py-2.5 text-sm text-ok">
+          Traspaso guardado. Inventario, reportes y cobro actualizados.
+        </p>
+      )}
       {corregido && (
         <p className="rounded-lg bg-ok-soft px-3.5 py-2.5 text-sm text-ok">
           Corrección guardada. Inventario y cargos actualizados.
@@ -183,6 +202,11 @@ export default async function LoteDetallePage({
             {producto?.clientes?.nombre ?? "—"}
           </p>
         </div>
+        {puedeCorregir && lote.estado === "activo" && (
+          <ButtonLink href={`/lotes/${lote.codigo_lote}/traspaso`} variant="secondary">
+            <ArrowRightLeft size={16} /> Traspasar cliente / ubicación
+          </ButtonLink>
+        )}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
