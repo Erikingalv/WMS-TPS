@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import { getUsuarioActual } from "@/lib/auth/session";
+import { puedeCorregirMovimientos } from "@/lib/auth/permisos";
 import { Select } from "@/components/ui/Field";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
@@ -47,6 +49,8 @@ export default async function InventarioPage({
 }) {
   const filtros = await searchParams;
   const supabase = await createClient();
+  const usuario = await getUsuarioActual();
+  const puedeTraspasar = usuario ? puedeCorregirMovimientos(usuario) : false;
 
   const [{ data: filasRaw }, { data: clientes }, { data: productos }, { data: ubicaciones }] =
     await Promise.all([
@@ -158,6 +162,7 @@ export default async function InventarioPage({
               <th className="px-4 py-3">Piezas</th>
               <th className="px-4 py-3">Tarimas</th>
               <th className="px-4 py-3">Días</th>
+              {puedeTraspasar && <th className="px-4 py-3" />}
             </tr>
           </thead>
           <tbody>
@@ -187,12 +192,24 @@ export default async function InventarioPage({
                   <td className="px-4 py-3">
                     <Badge tone={tonoPorDias(dias)}>{dias}</Badge>
                   </td>
+                  {puedeTraspasar && (
+                    <td className="px-4 py-3 text-right">
+                      {f.lotes && (
+                        <a
+                          href={`/lotes/${f.lotes.codigo_lote}/traspaso`}
+                          className="whitespace-nowrap text-xs text-accent hover:underline"
+                        >
+                          Traspasar
+                        </a>
+                      )}
+                    </td>
+                  )}
                 </tr>
               );
             })}
             {filas.length === 0 && (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-ink-faint">
+                <td colSpan={9} className="px-4 py-10 text-center text-ink-faint">
                   Sin existencias que coincidan con el filtro.
                 </td>
               </tr>

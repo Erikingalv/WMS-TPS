@@ -53,6 +53,8 @@ export type CargoPeriodoLinea = {
   viene_de_cliente: string | null; // nombre del cliente anterior, si es traspaso
   pasa_a_cliente: string | null; // nombre del cliente siguiente, si lo traspasaron
   fecha_traspaso_salida: string | null; // fecha (YYYY-MM-DD) en que pasó al siguiente cliente
+  // Lote creado por un traspaso parcial de otro cliente (sin maniobra de entrada).
+  entrada_por_traspaso: boolean;
 };
 
 // La tarifa en pesos, legible: "$7.50 por tarima por día", o por tramos si
@@ -103,19 +105,19 @@ export async function calcularCargosPeriodo(
     productos:
       | (Pick<Producto, "nombre" | "sku" | "cliente_id"> & { clientes: Pick<Cliente, "nombre"> | null })
       | null;
-    entradas: { numero_bl: string | null }[] | null;
+    entradas: { numero_bl: string | null; es_traspaso: boolean }[] | null;
   };
 
   const { data: lotesRaw } = await supabase
     .from("lotes")
-    .select("id, codigo_lote, fecha_ingreso, tarimas_inicial, producto_id, productos(nombre, sku, cliente_id, clientes(nombre)), entradas(numero_bl)")
+    .select("id, codigo_lote, fecha_ingreso, tarimas_inicial, producto_id, productos(nombre, sku, cliente_id, clientes(nombre)), entradas(numero_bl, es_traspaso)")
     .lte("fecha_ingreso", `${hasta}T23:59:59`);
   const lotes = (lotesRaw ?? []) as unknown as LoteConProducto[];
   if (lotes.length === 0) return [];
 
   const loteIds = lotes.map((l) => l.id);
   const [{ data: salidasRaw }, { data: traspasosRaw }, { data: clientesRaw }] = await Promise.all([
-    supabase.from("salidas").select("lote_id, fecha, cantidad_tarimas").in("lote_id", loteIds).order("fecha"),
+    supabase.from("salidas").select("lote_id, fecha, cantidad_tarimas, es_traspaso").in("lote_id", loteIds).order("fecha"),
     supabase
       .from("traspasos_cliente")
       .select("lote_id, fecha, cliente_origen_id, cliente_destino_id, producto_origen_id, producto_destino_id")
@@ -124,10 +126,10 @@ export async function calcularCargosPeriodo(
     supabase.from("clientes").select("id, nombre"),
   ]);
 
-  const salidasPorLote = new Map<string, { fecha: string; cantidad_tarimas: number }[]>();
+  const salidasPorLote = new Map<string, { fecha: string; cantidad_tarimas: number; es_traspaso: boolean }[]>();
   (salidasRaw ?? []).forEach((s) => {
     const lista = salidasPorLote.get(s.lote_id) ?? [];
-    lista.push({ fecha: s.fecha, cantidad_tarimas: s.cantidad_tarimas });
+    lista.push({ fecha: s.fecha, cantidad_tarimas: s.cantidad_tarimas, es_traspaso: s.es_traspaso });
     salidasPorLote.set(s.lote_id, lista);
   });
 
@@ -281,7 +283,8 @@ export async function calcularCargosPeriodo(
     }
 
     // Maniobra de entrada: al cliente al que se le recibió el material.
-    if (fechaIngresoDia >= fechaDesde && fechaIngresoDia <= fechaHasta) {
+    const entradaPorTraspaso = lote.entradas?.[0]?.es_traspaso === true;
+    if (!entradaPorTraspaso && fechaIngresoDia >= fechaDesde && fechaIngresoDia <= fechaHasta) {
       const tramo = tramos[0];
       const tarifa = tarifaPorCliente.get(tramo.clienteId);
       tramo.tarimasEntrada = lote.tarimas_inicial;
@@ -290,6 +293,7 @@ export async function calcularCargosPeriodo(
 
     // Maniobra de salida: al cliente dueño del lote el día de la salida.
     for (const s of salidas) {
+      if (s.es_traspaso) continue; // mover material entre naves no genera maniobra
       const dia = inicioDia(s.fecha);
       if (dia >= fechaDesde && dia <= fechaHasta) {
         const tramo = tramoDelDia(dia);
@@ -338,6 +342,7 @@ export async function calcularCargosPeriodo(
         viene_de_cliente: tramo.vieneDe ? (nombreCliente.get(tramo.vieneDe) ?? null) : null,
         pasa_a_cliente: siguiente ? (nombreCliente.get(siguiente.clienteId) ?? null) : null,
         fecha_traspaso_salida: siguiente ? traspasos[i].fecha : null,
+        entrada_por_traspaso: entradaPorTraspaso,
       });
     });
   }

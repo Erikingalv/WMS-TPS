@@ -135,6 +135,7 @@ export type Entrada = {
   tarimas_parciales: TarimaParcial[];
   firma_digital_url: string | null;
   grupo_id: string;
+  es_traspaso: boolean;
 };
 
 export type Salida = {
@@ -170,6 +171,7 @@ export type Salida = {
   piezas_tarima_parcial: number | null;
   numero_tarima_parcial: number | null;
   grupo_id: string;
+  es_traspaso: boolean;
 };
 
 export type MovimientoInterno = {
@@ -602,6 +604,20 @@ export type Database = {
           p_motivo: string | null;
         };
         Returns: MovimientoInterno;
+      };
+      traspasar_parcial: {
+        Args: {
+          p_lote_id: string;
+          p_cliente_destino_id: string;
+          p_ubicacion_origen_id: string;
+          p_ubicacion_destino_id?: string | null;
+          p_cantidad_tarimas: number;
+          p_cantidad_piezas: number;
+          p_fecha?: string | null;
+          p_tarima_numeros?: number[] | null;
+          p_motivo?: string | null;
+        };
+        Returns: { codigo_lote_nuevo: string; lote_nuevo_id: string };
       };
       traspasar_lote: {
         Args: {

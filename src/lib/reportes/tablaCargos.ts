@@ -58,6 +58,9 @@ function textoCalculo(l: CargoPeriodoLinea): string {
     return "Sin tarifa configurada: no se calculó cargo (configúrala en /tarifas).";
   }
   const lineas: string[] = [];
+  if (l.entrada_por_traspaso) {
+    lineas.push("Material traspasado desde otro cliente: se cobra a este cliente desde la fecha de entrada, sin maniobra de entrada");
+  }
   if (l.viene_de_cliente) {
     lineas.push(`Traspaso desde ${l.viene_de_cliente}: se cobra a este cliente desde ${fechaDiaMes(l.fecha_inicio_cliente.slice(0, 10))}`);
   }
@@ -107,7 +110,9 @@ export function construirTablaCargos(lineas: CargoPeriodoLinea[]): {
   const textoEntrada = (l: (typeof lineas)[number]) =>
     l.viene_de_cliente
       ? `${fechaCorta(l.fecha_inicio_cliente)} (traspaso de ${l.viene_de_cliente})`
-      : fechaCorta(l.fecha_ingreso);
+      : l.entrada_por_traspaso
+        ? `${fechaCorta(l.fecha_ingreso)} (traspaso)`
+        : fechaCorta(l.fecha_ingreso);
   const textoSalida = (l: (typeof lineas)[number]) => {
     if (l.pasa_a_cliente && l.fecha_traspaso_salida) {
       return `Traspasado a ${l.pasa_a_cliente} el ${fechaCorta(`${l.fecha_traspaso_salida}T12:00:00`)}`;
